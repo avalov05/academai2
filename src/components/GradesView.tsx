@@ -12,7 +12,7 @@ export default function GradesView() {
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="micro">GRADE TELEMETRY — TARGET: STRAIGHT A&apos;S</div>
       <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>The <span className="iridescent-text">4.0</span> Ledger</h2>
-      {data.classes.length === 0 && <div className="dim mono">Add classes first — grading schemes ride in with each syllabus.</div>}
+      {data.classes.length === 0 && <div className="empty-note">Add classes first — grading schemes ride in with each syllabus.</div>}
       {data.classes.map(k => <GradeCard key={k.id} k={k} />)}
     </div>
   );
@@ -33,9 +33,9 @@ function GradeCard({ k }: { k: Klass }) {
   const remainW = totalW - st.gradedWeight;
   const projected = (earnedW + (remainW * whatIf) / 100) / totalW * 100;
 
-  const needTone = st.neededOnRemaining == null ? 'dim'
-    : st.neededOnRemaining > 100 ? 'danger'
-    : st.neededOnRemaining > 92 ? 'warn' : 'ok';
+  const needColor = st.neededOnRemaining == null ? 'var(--dim)'
+    : st.neededOnRemaining > 100 ? '#c0392f'
+    : st.neededOnRemaining > 92 ? '#b07714' : '#1e7a5f';
 
   return (
     <div className="panel corner" style={{ padding: 18, marginBottom: 14, borderLeft: `3px solid ${k.color}` }}>
@@ -56,7 +56,7 @@ function GradeCard({ k }: { k: Klass }) {
               <div key={b.name} className="row" style={{ padding: '4px 0' }}>
                 <span className="mono dim" style={{ fontSize: 10.5, width: 150 }}>{b.name.toUpperCase()} · {b.weight_pct}%{b.drops ? ` · DROP ${b.drops}` : ''}</span>
                 <div className="bar" style={{ flex: 1 }}>
-                  <i style={{ width: `${bs.avg ?? 0}%`, background: bs.avg == null ? 'transparent' : bs.avg >= k.target_pct ? 'var(--ok)' : bs.avg >= 80 ? 'var(--warn)' : 'var(--danger)' }} />
+                  <i style={{ width: `${bs.avg ?? 0}%`, background: bs.avg == null ? 'transparent' : bs.avg >= k.target_pct ? '#2E9E7E' : bs.avg >= 80 ? '#E8A33D' : '#E0555F' }} />
                 </div>
                 <span className="mono num" style={{ fontSize: 11, width: 52, textAlign: 'right', color: bs.avg == null ? 'var(--faint)' : 'var(--text)' }}>
                   {bs.avg == null ? 'N/A' : bs.avg.toFixed(1)}
@@ -67,12 +67,12 @@ function GradeCard({ k }: { k: Klass }) {
         </div>
         <div style={{ minWidth: 210 }}>
           <div className="micro" style={{ marginBottom: 4 }}>TO HOLD {k.target_pct}% ({letterFor(k.target_pct)})</div>
-          <div className={`display num ${needTone}`} style={{ fontSize: 30 }}>
+          <div className="display num" style={{ fontSize: 30, color: needColor }}>
             {st.neededOnRemaining == null ? 'DONE' : st.neededOnRemaining <= 0 ? 'SECURED ✓' : st.neededOnRemaining > 100 ? `${st.neededOnRemaining.toFixed(1)}% ⚠` : `≥ ${st.neededOnRemaining.toFixed(1)}%`}
           </div>
           <div className="micro" style={{ margin: '2px 0 10px' }}>AVG NEEDED ON REMAINING {remainW}%</div>
           <div className="micro">WHAT-IF: SCORE <span className="acc num">{whatIf}%</span> ON THE REST →
-            <span className="num" style={{ color: projected >= k.target_pct ? 'var(--ok)' : 'var(--danger)' }}> {projected.toFixed(1)}% {letterFor(projected)}</span>
+            <span className="num" style={{ color: projected >= k.target_pct ? '#1e7a5f' : '#c0392f' }}> {projected.toFixed(1)}% {letterFor(projected)}</span>
           </div>
           <input type="range" min={50} max={100} value={whatIf} onChange={e => setWhatIf(Number(e.target.value))} />
         </div>

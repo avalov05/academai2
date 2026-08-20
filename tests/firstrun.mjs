@@ -6,12 +6,12 @@ const page = await (await browser.newContext({ viewport: { width: 1280, height: 
 const errs = []; page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
 await page.goto('http://localhost:3778', { waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
-await page.screenshot({ path: '/tmp/shots/30-firstrun.png' });
-console.log('cold start visible:', await page.locator('text=INITIALIZE').isVisible());
+await page.screenshot({ path: '/tmp/s6/30-firstrun.png' });
+console.log('cold start visible:', await page.locator('text=Initialize').isVisible());
 // set semester
-await page.click('button:has-text("SET ⟶")');
+await page.click('button:has-text("Set")');
 await page.waitForTimeout(900);
-await page.screenshot({ path: '/tmp/shots/31-firstrun-step2.png' });
+await page.screenshot({ path: '/tmp/s6/31-firstrun-step2.png' });
 const s2 = await page.locator('text=ARM THE EXTRACTION ENGINE').isVisible();
 console.log('step 2 reached:', s2);
 console.log('errors:', errs.length ? errs.slice(0, 3) : 'none');

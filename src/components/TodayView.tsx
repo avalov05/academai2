@@ -33,9 +33,9 @@ export default function TodayView() {
       </div>
 
       {b.overdue.length > 0 && (
-        <section className="panel corner alarm boot-in" style={{ marginTop: 22, padding: 16, ...delay() }}>
+        <section className="panel corner dark boot-in" style={{ marginTop: 22, padding: 18, ...delay() }}>
           <i className="c3" />
-          <div className="micro danger glitch">OVERDUE — RESOLVE FIRST</div>
+          <div className="micro" style={{ color: '#FF8A9E' }}>OVERDUE — RESOLVE FIRST</div>
           {b.overdue.map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
               onOpen={() => openDetail(it.id)} onDone={() => setStatus(it.id, 'done')} danger />
@@ -47,7 +47,7 @@ export default function TodayView() {
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
           <div className="micro" style={{ marginBottom: 10 }}>TODAY&apos;S MEETINGS</div>
-          {b.meetings.length === 0 && <div className="dim mono" style={{ fontSize: 12 }}>No meetings. Async day — the radar still watches.</div>}
+          {b.meetings.length === 0 && <div className="empty-note">No meetings. Async day — the radar still watches.</div>}
           {b.meetings.map(m => {
             const comp = compById.get(m.component_id);
             const k = classById.get(m.class_id);
@@ -72,7 +72,7 @@ export default function TodayView() {
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
           <div className="micro" style={{ marginBottom: 10 }}>DUE TODAY</div>
-          {b.dueToday.length === 0 && <div className="dim mono" style={{ fontSize: 12 }}>Nothing due today.</div>}
+          {b.dueToday.length === 0 && <div className="empty-note">Nothing due today.</div>}
           {b.dueToday.map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
               onOpen={() => openDetail(it.id)} onDone={() => setStatus(it.id, 'done')} />
@@ -84,7 +84,7 @@ export default function TodayView() {
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
           <div className="micro" style={{ marginBottom: 10 }}>START TODAY — DEFUSE FUTURE PILE-UPS</div>
-          {startToday.length === 0 && <div className="dim mono" style={{ fontSize: 12 }}>No early starts scheduled.</div>}
+          {startToday.length === 0 && <div className="empty-note">No early starts scheduled.</div>}
           {startToday.slice(0, 6).map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
               onOpen={() => openDetail(it.id)} onDone={() => setStatus(it.id, 'done')} startMode />
@@ -93,7 +93,7 @@ export default function TodayView() {
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
           <div className="micro" style={{ marginBottom: 10 }}>INBOUND — NEXT 72H</div>
-          {b.upcoming.length === 0 && <div className="dim mono" style={{ fontSize: 12 }}>Clear skies for 72 hours.</div>}
+          {b.upcoming.length === 0 && <div className="empty-note">Clear skies for 72 hours.</div>}
           {b.upcoming.slice(0, 8).map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
               onOpen={() => openDetail(it.id)} onDone={() => setStatus(it.id, 'done')} />
@@ -114,15 +114,15 @@ function RowItem({ it, cls, now, onOpen, onDone, danger, startMode }: {
   return (
     <div className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
       <input type="checkbox" checked={false} onChange={onDone} title="Mark done" />
-      <span className="chip" style={{ borderColor: (cls?.color ?? '#7A7A88') + '55' }}>
-        <span className="dot" style={{ background: cls?.color ?? '#7A7A88' }} />{cls?.code ?? 'LIFE'}
+      <span className="chip" style={{ borderColor: (cls?.color ?? '#8A8A84') + '55' }}>
+        <span className="dot" style={{ background: cls?.color ?? '#8A8A84' }} />{cls?.code ?? 'LIFE'}
       </span>
       <span className="mono faint" style={{ fontSize: 9 }}>{TYPE_GLYPH[it.type]}</span>
-      <button onClick={onOpen} style={{ background: 'none', border: 'none', color: danger ? 'var(--danger)' : 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', padding: 0, flex: 1 }} className={danger ? 'glitch-hover' : ''}>
+      <button onClick={onOpen} style={{ background: 'none', border: 'none', color: danger ? '#FF8A9E' : 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', padding: 0, flex: 1 }} className={danger ? 'glitch-hover' : ''}>
         {startMode ? <span className="warn mono" style={{ fontSize: 10 }}>START · </span> : null}{it.title}
       </button>
       {it.due_at && (
-        <span className={`mono right-align ${danger ? 'danger' : 'dim'}`} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+        <span className="mono right-align" style={{ fontSize: 11, whiteSpace: 'nowrap', color: danger ? '#FF8A9E' : 'var(--dim)' }}>
           {danger ? humanDelta(new Date(it.due_at).getTime() - now.getTime()) : fmtEt(new Date(it.due_at), it.all_day ? 'MMM d' : 'EEE HH:mm')}
         </span>
       )}

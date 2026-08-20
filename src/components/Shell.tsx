@@ -85,8 +85,8 @@ export default function Shell() {
           {overdueCount > 0 && <span className="chip hot">{overdueCount} OVERDUE</span>}
           <span className="chip">{dueToday} DUE TODAY</span>
           <span className="chip ok" title="on-time / missed / day streak">{intg.missed === 0 ? `0 MISSED · ${intg.streakDays}D` : `${intg.missed} MISSED`}</span>
-          <button className="btn sm danger" onClick={() => app.setPanicOpen(true)} title="Panic — I have N minutes (P)">PANIC</button>
-          <button className="btn sm" onClick={() => setView('SETTINGS')} title="Settings (S)">⚙</button>
+          <button className="btn sm primary" onClick={() => app.setPanicOpen(true)} title="Panic — I have N minutes (P)">Panic</button>
+          <button className="btn sm" onClick={() => setView('SETTINGS')} title="Settings (S)" style={{ padding: '5px 10px' }}>⚙</button>
           <Clock />
         </div>
       </header>
@@ -104,9 +104,9 @@ export default function Shell() {
 
       {view === 'RADAR' && !needsSetup && (
         <footer style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px 18px', display: 'flex', gap: 18, pointerEvents: 'none', flexWrap: 'wrap' }}>
-          <span className="mono faint" style={{ fontSize: 9.5 }}>◆ COMMITTED · ◇ PROPOSED (dashed) · CENTER = NOW · RIM = 3 WEEKS OUT</span>
-          <span className="mono faint" style={{ fontSize: 9.5 }}>SHAPES: ◆ EXAM · ▲ QUIZ · ■ PROJECT · ● WORK</span>
-          <span className="mono faint right-align" style={{ fontSize: 9.5 }}>⌘K PALETTE · P PANIC · V PASTE-IN · CLICK BLIP = DETAIL</span>
+          <span className="mono dim" style={{ fontSize: 10 }}>◆ COMMITTED · ◇ PROPOSED (dashed) · CENTER = NOW · RIM = 3 WEEKS OUT</span>
+          <span className="mono dim" style={{ fontSize: 10 }}>RINGED ◆ = TEST (EXAM / IN-CLASS QUIZ) · ■ PROJECT · ● WORK</span>
+          <span className="mono dim right-align" style={{ fontSize: 10 }}>⌘K PALETTE · P PANIC · V PASTE-IN · CLICK BLIP = DETAIL</span>
         </footer>
       )}
 
@@ -124,8 +124,9 @@ function Toasts() {
     <div style={{ position: 'fixed', bottom: 18, right: 18, zIndex: 100, display: 'flex', flexDirection: 'column', gap: 8 }}>
       {toasts.map(t => (
         <div key={t.id} className="panel-solid boot-in" style={{
-          padding: '10px 14px', fontFamily: 'var(--font-m)', fontSize: 11.5, maxWidth: 360,
-          borderLeft: `3px solid var(--${t.tone === 'ok' ? 'ok' : t.tone === 'warn' ? 'warn' : 'danger'})`,
+          padding: '12px 16px', fontSize: 12.5, maxWidth: 360,
+          boxShadow: 'var(--shadow-dark)',
+          borderLeft: `4px solid var(--${t.tone === 'ok' ? 'ok' : t.tone === 'warn' ? 'warn' : 'danger'})`,
         }}>
           {t.msg}
         </div>

@@ -277,8 +277,8 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
                 <div key={card.key} className={`panel verdict-${v}`} style={{ padding: '10px 14px', marginBottom: 6 }}>
                   <div className="row">
                     <input type="checkbox" checked={card.include} disabled={v === 'KNOWN'} onChange={() => toggle(card.key)} />
-                    <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}>
-                      <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{card.classCode || 'LIFE'}
+                    <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}>
+                      <span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{card.classCode || 'LIFE'}
                     </span>
                     <span className="mono faint" style={{ fontSize: 9 }}>{card.incoming.type.toUpperCase()}{!card.incoming.at_home && '·IN-CLASS'}</span>
                     <span style={{ flex: 1 }}>{card.incoming.title}</span>

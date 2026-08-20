@@ -9,9 +9,19 @@ import { humanDelta, fmtEt } from '@/lib/time';
 import { sfx } from '@/lib/sound';
 import { TYPE_GLYPH } from '@/lib/palette';
 
-const LIFE = '#7A7A88';
-const INK = '#292929';
-const OVERDUE = '#E4566E';
+const LIFE = '#8A8A84';
+const INK = '#171717';
+const OVERDUE = '#E0555F';
+const PAPER = '#EFEFEA';
+
+/** perceived lightness 0..1 — light blips need a darker outline to hold up */
+function lightness(hex: string): number {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
 
 // hours-until-due → radius fraction (piecewise)
 const ANCHORS: Array<[number, number]> = [
@@ -83,39 +93,45 @@ export default function Radar() {
 
       // rings
       const rings: Array<[number, string]> = [[0.13, 'NOW'], [0.34, '24H'], [0.52, '3D'], [0.70, '1W'], [0.85, '2W'], [0.965, '3W+']];
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.2;
       for (const [f, label] of rings) {
         ctx.beginPath();
-        ctx.strokeStyle = f === 0.13 ? 'rgba(228,86,110,0.55)' : (f === 0.965 ? 'rgba(41,41,41,0.34)' : 'rgba(41,41,41,0.22)');
+        ctx.strokeStyle = f === 0.13 ? 'rgba(224,85,95,0.7)' : (f === 0.965 ? 'rgba(23,23,23,0.44)' : 'rgba(23,23,23,0.27)');
         ctx.setLineDash(f === 0.965 ? [] : [3, 5]);
         ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.font = '700 10px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(41,41,41,0.58)';
+        ctx.font = '700 10.5px Inter, sans-serif';
         ctx.textAlign = 'center';
+        ctx.lineWidth = 3.4; ctx.lineJoin = 'round';
+        ctx.strokeStyle = PAPER;
+        ctx.strokeText(label, cx, cy - R * f - 5);
+        ctx.fillStyle = '#87877f';
         ctx.fillText(label, cx, cy - R * f - 5);
+        ctx.lineWidth = 1.2;
       }
       // sector separators + labels
       for (const [, s] of sectors) {
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(41,41,41,0.18)';
+        ctx.strokeStyle = 'rgba(23,23,23,0.19)';
         ctx.moveTo(cx + Math.cos(s.a0) * R * 0.13, cy + Math.sin(s.a0) * R * 0.13);
         ctx.lineTo(cx + Math.cos(s.a0) * R, cy + Math.sin(s.a0) * R);
         ctx.stroke();
         const mid = (s.a0 + s.a1) / 2;
         ctx.save();
-        ctx.font = '700 11.5px Inter, sans-serif';
-        ctx.fillStyle = s.color;
-        ctx.globalAlpha = 1;
+        ctx.font = '800 12px Inter, sans-serif';
         ctx.textAlign = 'center';
         const lx = cx + Math.cos(mid) * (R + 20), ly = cy + Math.sin(mid) * (R + 20);
+        ctx.lineWidth = 4; ctx.lineJoin = 'round';
+        ctx.strokeStyle = PAPER;
+        ctx.strokeText(s.label, lx, ly + 3);
+        ctx.fillStyle = s.color;
         ctx.fillText(s.label, lx, ly + 3);
         ctx.restore();
       }
       // crosshair
-      ctx.strokeStyle = 'rgba(41,41,41,0.55)';
-      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = 'rgba(23,23,23,0.6)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
       ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7);
@@ -126,10 +142,10 @@ export default function Radar() {
       const sw = sweepRef.current - Math.PI / 2;
       const grad = ctx.createConicGradient ? (() => {
         const g = ctx.createConicGradient(sw - 0.9, cx, cy);
-        g.addColorStop(0, 'rgba(155,169,247,0)');
-        g.addColorStop(0.12, 'rgba(135,99,222,0.20)');
-        g.addColorStop(0.125, 'rgba(155,169,247,0)');
-        g.addColorStop(1, 'rgba(155,169,247,0)');
+        g.addColorStop(0, 'rgba(168,178,255,0)');
+        g.addColorStop(0.12, 'rgba(168,178,255,0.30)');
+        g.addColorStop(0.125, 'rgba(168,178,255,0)');
+        g.addColorStop(1, 'rgba(168,178,255,0)');
         return g;
       })() : null;
       if (grad) {
@@ -140,8 +156,8 @@ export default function Radar() {
         ctx.fill();
       }
       const swGrad = ctx.createLinearGradient(cx, cy, cx + Math.cos(sw) * R, cy + Math.sin(sw) * R);
-      swGrad.addColorStop(0, 'rgba(41,41,41,0.42)');
-      swGrad.addColorStop(1, 'rgba(155,169,247,0)');
+      swGrad.addColorStop(0, 'rgba(23,23,23,0.30)');
+      swGrad.addColorStop(1, 'rgba(168,178,255,0)');
       ctx.strokeStyle = swGrad;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
@@ -154,7 +170,7 @@ export default function Radar() {
       const blips: Blip[] = [];
       const labels: Array<{
         x: number; y: number; size: number; right: boolean; overdue: boolean;
-        title: string; delta: string;
+        isTest: boolean; title: string; delta: string;
       }> = [];
       for (const it of active) {
         const hours = (new Date(it.due_at!).getTime() - now.getTime()) / 3600000;
@@ -167,14 +183,16 @@ export default function Radar() {
         const r = R * (overdue ? 0.05 + hash01(it.id) * 0.04 : rFrac(hours));
         const x = cx + Math.cos(angle) * r + jit;
         const y = cy + Math.sin(angle) * r + (overdue ? Math.cos(t / 47) * 2 : 0);
-        const size = 5 + itemImpact(it) * 9.5;
+        // a "test" is anything you sit for: an exam, or an in-class quiz
+        const isTest = it.type === 'exam' || (it.type === 'quiz' && it.at_home === false);
+        const size = (5 + itemImpact(it) * 9.5) * (isTest ? 1.5 : 1);
         const color = overdue ? OVERDUE : (classById.get(it.class_id ?? '')?.color ?? LIFE);
         blips.push({ it, x, y, px: x, py: y, size, color, overdue, angle, r });
 
         // inbound trajectory trail
         if (!overdue) {
           ctx.beginPath();
-          ctx.strokeStyle = color + '80';
+          ctx.strokeStyle = color + 'BF';
           ctx.lineWidth = 1;
           ctx.setLineDash(it.ghost ? [2, 4] : []);
           const tr = r + 14 + itemImpact(it) * 10;
@@ -198,23 +216,60 @@ export default function Radar() {
         } else {
           ctx.fillStyle = color;
           ctx.fill();
-          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6; ctx.stroke();
-          ctx.strokeStyle = 'rgba(41,41,41,0.30)'; ctx.lineWidth = 0.75; ctx.stroke();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+          const lum = lightness(color);
+          ctx.strokeStyle = `rgba(31,31,31,${(0.34 + lum * 0.5).toFixed(2)})`;
+          ctx.lineWidth = lum > 0.62 ? 1.4 : 1;
+          ctx.stroke();
         }
         ctx.restore();
+
+        // tests get a target ring so they're impossible to miss; it tightens
+        // and breathes as the date closes in
+        if (isTest && !it.ghost) {
+          const days = hours / 24;
+          const near = days <= 7;
+          const breathe = near ? 1 + 0.06 * Math.sin(t / 620 + hash01(it.id) * 9) : 1;
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = near ? 0.85 : 0.5;
+          ctx.lineWidth = near ? 1.8 : 1.2;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath();
+          ctx.arc(x, y, (size + 8) * breathe, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // outer hairline ring for the closest ones
+          if (near) {
+            ctx.globalAlpha = 0.32;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(x, y, (size + 15) * breathe, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          // tick on the rim marking the bearing the test is coming from
+          ctx.globalAlpha = 0.65;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(angle) * R * 0.985, cy + Math.sin(angle) * R * 0.985);
+          ctx.lineTo(cx + Math.cos(angle) * (R * 0.985 + 9), cy + Math.sin(angle) * (R * 0.985 + 9));
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // overdue alert rings
         if (overdue) {
           const ph = (t / 1400) % 1;
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(228,86,110,${0.45 * (1 - ph)})`;
+          ctx.strokeStyle = `rgba(224,85,95,${0.5 * (1 - ph)})`;
           ctx.lineWidth = 1.4;
           ctx.arc(x, y, size + ph * 24, 0, Math.PI * 2);
           ctx.stroke();
         }
-        // near labels for <3d — collected now, decluttered and drawn after
-        if (hours < 72 && !it.ghost) {
+        // labels: everything inside 3 days, plus every test regardless of distance
+        if ((hours < 72 || isTest) && !it.ghost) {
           labels.push({
-            x, y, size, right: x > cx, overdue,
+            x, y, size, right: x > cx, overdue, isTest,
             title: (it.title.length > 22 ? it.title.slice(0, 21) + '…' : it.title).toUpperCase(),
             delta: humanDelta(new Date(it.due_at!).getTime() - now.getTime()),
           });
@@ -226,7 +281,7 @@ export default function Radar() {
       blipsRef.current = blips;
 
       // ── label declutter: greedy vertical push, per side ──
-      const ROW = 24;
+      const ROW = 26;
       for (const side of [true, false]) {
         const group = labels.filter(l => l.right === side).sort((a, b) => a.y - b.y);
         let lastY = -Infinity;
@@ -239,22 +294,23 @@ export default function Radar() {
           // leader line when the label had to move
           if (Math.abs(ly - l.y) > 3) {
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(41,41,41,0.34)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(23,23,23,0.36)';
+            ctx.lineWidth = 1.1;
             ctx.moveTo(l.x + (side ? l.size + 2 : -l.size - 2), l.y);
             ctx.lineTo(lx - (side ? 3 : -3), ly - 3);
             ctx.stroke();
           }
           ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
-          ctx.font = '700 10.5px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(255,255,255,0.96)';
-          ctx.strokeText(l.title, lx, ly - 3);
-          ctx.fillStyle = l.overdue ? OVERDUE : INK;
-          ctx.fillText(l.title, lx, ly - 3);
+          ctx.font = l.isTest ? '800 11.5px Inter, sans-serif' : '700 10.5px Inter, sans-serif';
+          ctx.strokeStyle = PAPER;
+          const shown = l.isTest ? `◆ ${l.title}` : l.title;
+          ctx.strokeText(shown, lx, ly - 3);
+          ctx.fillStyle = l.overdue ? '#c0392f' : INK;
+          ctx.fillText(shown, lx, ly - 3);
           ctx.font = '600 9.5px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+          ctx.strokeStyle = PAPER;
           ctx.strokeText(l.delta, lx, ly + 9);
-          ctx.fillStyle = l.overdue ? '#c33d54' : 'rgba(41,41,41,0.68)';
+          ctx.fillStyle = l.overdue ? '#c0392f' : '#5d5d59';
           ctx.fillText(l.delta, lx, ly + 9);
         }
       }
@@ -266,7 +322,7 @@ export default function Radar() {
       if (overCount) {
         ctx.font = '800 11px Inter, sans-serif';
         ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+        ctx.strokeStyle = PAPER;
         ctx.strokeText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);
         ctx.fillStyle = OVERDUE;
         ctx.fillText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);

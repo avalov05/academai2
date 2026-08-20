@@ -23,7 +23,7 @@ export default function SettingsView() {
         <i className="c3" />
         <div className="micro" style={{ marginBottom: 10 }}>EXTRACTION ENGINE — GEMINI API</div>
         <div className="row">
-          <input type={showKey ? 'text' : 'password'} placeholder="AIza… (aistudio.google.com → Get API key)"
+          <input type={showKey ? 'text' : 'password'} placeholder="Paste your Gemini API key"
             value={key} onChange={e => setKey(e.target.value)} style={{ flex: 1 }} />
           <button className="btn sm" onClick={() => setShowKey(!showKey)}>{showKey ? 'HIDE' : 'SHOW'}</button>
           <button className="btn sm primary" onClick={() => { app.saveSettings({ gemini_key: key.trim() }); notify('Gemini key saved'); }}>SAVE</button>

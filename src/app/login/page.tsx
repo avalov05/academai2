@@ -26,7 +26,10 @@ export default function Login() {
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: 20 }}>
       <form onSubmit={go} className="panel corner fade-up" style={{ padding: 28, width: 400, maxWidth: '94vw' }}>
         <i className="c3" />
-        <div className="micro">YOUR SEMESTER · ONE PLACE</div>
+        <div className="row" style={{ marginBottom: 14 }}>
+          <span className="sig" style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#ff9a8b 0%,#ff6a88 55%,#a8b2ff 100%)', display: 'inline-block' }} />
+          <span className="micro">Your semester · one place</span>
+        </div>
         <h1 className="display" style={{ fontSize: 40, margin: '10px 0 2px' }}>
           ACADEM<span className="iridescent-text">AI</span>
         </h1>

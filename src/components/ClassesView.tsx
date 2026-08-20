@@ -6,7 +6,7 @@ import type { ClassComponent, ComponentKind, Klass } from '@/lib/types';
 import { COMPONENT_KINDS, KIND_LABEL } from '@/lib/types';
 import { nextColor } from '@/lib/palette';
 import { expandComponent } from '@/lib/recurrence';
-import { todayEt, addDaysStr } from '@/lib/time';
+import { todayEt, addDaysStr, etEndOfDay, fmtEt } from '@/lib/time';
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -31,7 +31,7 @@ export default function ClassesView() {
       {data.classes.length === 0 && (
         <div className="panel corner" style={{ padding: 30, textAlign: 'center' }}>
           <i className="c3" />
-          <div className="dim mono" style={{ fontSize: 12 }}>No classes yet. Fastest path: INTAKE tab → paste each syllabus → everything builds itself.</div>
+          <div className="empty-note" style={{ justifyContent: 'center' }}>No classes yet. Fastest path: paste each syllabus into INTAKE — everything builds itself.</div>
         </div>
       )}
       <HolidaysPanel />
@@ -132,7 +132,7 @@ function ClassCard({ k, editingComp, setEditingComp }: {
                 `${c.days.map(d => DAY_LETTERS[d]).join('')} ${c.start_time}–${c.end_time}${c.interval === 2 ? ' · BIWEEKLY' : ''}`}
             </span>
             <span className="dim" style={{ fontSize: 11 }}>{c.location}</span>
-            {!c.is_async && nextOccs.get(c.id) && <span className="mono faint" style={{ fontSize: 10 }}>NEXT: {nextOccs.get(c.id)}</span>}
+            {!c.is_async && nextOccs.get(c.id) && <span className="mono faint" style={{ fontSize: 10 }}>NEXT {fmtEt(etEndOfDay(nextOccs.get(c.id)!), 'EEE MMM d')}</span>}
             <span className="right-align row">
               <button className="btn sm" onClick={() => setEditingComp(editingComp === c.id ? null : c.id)}>{editingComp === c.id ? 'CLOSE' : 'EDIT'}</button>
               <button className="btn sm danger" onClick={() => app.deleteComponent(c.id)}>✕</button>

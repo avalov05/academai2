@@ -117,7 +117,7 @@ export default function TableView() {
                       ? <button className="btn sm ghosty" onClick={() => acceptGhost(it.id)} title="Accept proposal">＋</button>
                       : <input type="checkbox" checked={it.status === 'done'} onChange={() => setStatus(it.id, it.status === 'done' ? 'pending' : 'done')} />}
                   </td>
-                  <td><span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}><span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}</span></td>
+                  <td><span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}><span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}</span></td>
                   <td className="mono dim" style={{ fontSize: 10 }}>{TYPE_GLYPH[it.type]}{it.at_home === false ? '·IC' : ''}</td>
                   <td style={{ maxWidth: 340 }}>
                     <span className={over ? 'danger glitch' : ''}>{it.ghost ? <span className="faint">◇ </span> : null}{it.title}</span>
@@ -131,7 +131,7 @@ export default function TableView() {
                   </td>
                   <td style={{ width: 80 }}>
                     <div className="bar" style={{ width: 64 }}>
-                      <i style={{ width: `${itemImpact(it) * 100}%`, background: over ? 'var(--danger)' : (k?.color ?? '#7A7A88') }} />
+                      <i style={{ width: `${itemImpact(it) * 100}%`, background: over ? 'var(--danger)' : (k?.color ?? '#8A8A84') }} />
                     </div>
                   </td>
                   <td className="mono dim" style={{ fontSize: 11 }}>{it.effort_min ? `${it.effort_min}m` : '—'}</td>
@@ -139,7 +139,7 @@ export default function TableView() {
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={8} className="dim mono" style={{ textAlign: 'center', padding: 30, fontSize: 12 }}>NO OBJECTS IN THIS FILTER</td></tr>
+              <tr><td colSpan={8} style={{ padding: 30 }}><div className="empty-note" style={{ justifyContent: 'center' }}>Nothing matches this filter.</div></td></tr>
             )}
           </tbody>
         </table>

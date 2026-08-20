@@ -40,12 +40,12 @@ export default function FirstRun() {
       <h1 className="display" style={{ fontSize: 'clamp(30px,5vw,52px)', margin: '8px 0 4px' }}>
         Initialize <span className="iridescent-text">AcademAI</span>
       </h1>
-      <div className="mono dim" style={{ fontSize: 12, marginBottom: 22 }}>
-        THREE STEPS. THEN PASTE A SYLLABUS AND THE RADAR FILLS ITSELF.
+      <div className="dim" style={{ fontSize: 13.5, marginBottom: 24 }}>
+        Three steps. Then paste a syllabus and the radar fills itself.
       </div>
 
       <Step n={1} title="DEFINE THE SEMESTER WINDOW" done={hasSemester}>
-        <div className="mono dim" style={{ fontSize: 11.5, marginBottom: 10 }}>
+        <div className="dim" style={{ fontSize: 12.5, marginBottom: 12 }}>
           Everything recurs inside this window — class meetings, weekly quizzes, study blocks.
         </div>
         <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -57,40 +57,40 @@ export default function FirstRun() {
             <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
           <button className="btn primary" style={{ alignSelf: 'flex-end' }}
             onClick={() => { app.upsertSemester({ name, start_date: start, end_date: end }); sfx.confirm(); }}>
-            SET ⟶
+            Set
           </button>
         </div>
       </Step>
 
       <Step n={2} title="ARM THE EXTRACTION ENGINE" done={hasKey}>
-        <div className="mono dim" style={{ fontSize: 11.5, marginBottom: 10 }}>
+        <div className="dim" style={{ fontSize: 12.5, marginBottom: 12 }}>
           Paste your free Gemini API key so the app can read syllabi and screenshots.
           Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>.
         </div>
-        <button className="btn primary" onClick={() => app.setView('SETTINGS')}>OPEN SETTINGS ⟶</button>
+        <button className="btn primary" onClick={() => app.setView('SETTINGS')}>Open settings</button>
       </Step>
 
       <Step n={3} title="FEED IT YOUR FIRST SYLLABUS" done={hasClasses}>
-        <div className="mono dim" style={{ fontSize: 11.5, marginBottom: 10 }}>
+        <div className="dim" style={{ fontSize: 12.5, marginBottom: 12 }}>
           Paste the whole syllabus — text or screenshots. It builds the class, its lecture/lab/recitation
           schedule, the grading breakdown, and every deadline it can find. You review before anything commits.
           Repeat for each class.
         </div>
-        <button className="btn primary" onClick={() => app.setView('INTAKE')}>OPEN INTAKE ⟶</button>
-        <button className="btn" style={{ marginLeft: 8 }} onClick={() => app.setView('CLASSES')}>ADD MANUALLY</button>
+        <button className="btn primary" onClick={() => app.setView('INTAKE')}>Open intake</button>
+        <button className="btn" style={{ marginLeft: 8 }} onClick={() => app.setView('CLASSES')}>Add manually</button>
       </Step>
 
       {hasSemester && hasKey && hasClasses && (
         <div className="panel corner" style={{ padding: 18, borderLeft: '3px solid var(--ok)' }}>
           <i className="c3" />
           <div className="micro ok">SYSTEM ARMED</div>
-          <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}>ENTER RADAR ⟶</button>
+          <button className="btn primary" style={{ marginTop: 10 }} onClick={() => location.reload()}>Enter radar</button>
         </div>
       )}
 
-      <div className="mono faint" style={{ fontSize: 10, marginTop: 20, lineHeight: 1.8 }}>
-        AFTER SETUP → SETTINGS → COPY THE CALENDAR FEED URL → SUBSCRIBE IN GOOGLE/APPLE CALENDAR.
-        THAT&apos;S WHAT PUTS &quot;LEAVE FOR LAB IN 15 MIN&quot; ON YOUR PHONE.
+      <div className="dim" style={{ fontSize: 12.5, marginTop: 22, lineHeight: 1.7, maxWidth: 560 }}>
+        After setup, open Settings and copy the calendar feed URL into Google or Apple Calendar.
+        That&apos;s what puts &quot;leave for lab in 15 min&quot; on your phone.
       </div>
     </div>
   );

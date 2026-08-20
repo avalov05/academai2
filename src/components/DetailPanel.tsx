@@ -25,8 +25,8 @@ export default function DetailPanel() {
       <div className="overlay-dim" onClick={() => openDetail(null)} />
       <aside className="slideover">
         <div className="row" style={{ marginBottom: 14 }}>
-          <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '66' }}>
-            <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}
+          <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '66' }}>
+            <span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}
           </span>
           {it.ghost && <span className="chip ghost warn">PROPOSED — NOT COMMITTED</span>}
           <button className="btn sm right-align" onClick={() => openDetail(null)}>ESC ✕</button>
@@ -56,14 +56,15 @@ export default function DetailPanel() {
           <label className="field"><span className="micro">DUE DATE (ET)</span>
             <input type="date" value={dueDate} onChange={e => setDue(e.target.value, dueTime)} />
           </label>
-          <label className="field"><span className="micro">DUE TIME — BLANK = END OF DAY</span>
+          <label className="field"><span className="micro">DUE TIME</span>
             <input type="time" value={dueTime} onChange={e => setDue(dueDate || utcToEtDate(now), e.target.value)} />
+            <span className="faint" style={{ fontSize: 10.5, display: 'block', marginTop: 4 }}>blank = end of day</span>
           </label>
           <label className="field"><span className="micro">EFFORT (MIN)</span>
             <input type="number" value={it.effort_min || ''} placeholder="est. minutes"
               onChange={e => updateItem(it.id, { effort_min: Number(e.target.value) || 0 })} />
           </label>
-          <label className="field"><span className="micro">GRADE WEIGHT % (IF KNOWN)</span>
+          <label className="field"><span className="micro">GRADE WEIGHT %</span>
             <input type="number" value={it.weight_pct ?? ''} placeholder="—"
               onChange={e => updateItem(it.id, { weight_pct: e.target.value === '' ? null : Number(e.target.value) })} />
           </label>
@@ -102,7 +103,7 @@ export default function DetailPanel() {
         <div className="row" style={{ marginTop: 18, flexWrap: 'wrap' }}>
           {it.status !== 'done' && <button className="btn primary" onClick={() => { setStatus(it.id, 'done'); openDetail(null); }}>MARK DONE ✓</button>}
           {it.status === 'done' && <button className="btn" onClick={() => setStatus(it.id, 'pending')}>REOPEN</button>}
-          {it.status !== 'missed' && it.status !== 'done' && <button className="btn danger" onClick={() => setStatus(it.id, 'missed')}>MARK MISSED</button>}
+          {it.status !== 'missed' && it.status !== 'done' && <button className="btn" onClick={() => setStatus(it.id, 'missed')}>MARK MISSED</button>}
           <button className="btn danger right-align" onClick={() => { deleteItem(it.id); openDetail(null); }}>DELETE</button>
         </div>
         <div className="mono faint" style={{ fontSize: 9, marginTop: 16 }}>

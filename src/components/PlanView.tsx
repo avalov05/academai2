@@ -47,11 +47,11 @@ export default function PlanView() {
                 className={f.hell ? 'alarm' : ''}
                 style={{
                   width: '100%', maxWidth: 54,
-                  height: `${Math.max(3, (f.ratio / Math.max(maxRatio, 1)) * 100)}%`,
+                  height: `${Math.max(4, (f.ratio / Math.max(maxRatio, 1)) * 100)}%`,
                   background: f.hell
-                    ? 'linear-gradient(to top, rgba(228,86,110,.85), rgba(255,148,156,.55))'
-                    : 'linear-gradient(to top, rgba(155,169,247,.75), rgba(221,221,246,.5))',
-                  border: '1px solid ' + (f.hell ? 'rgba(228,86,110,.5)' : 'var(--line)'), borderRadius: '5px 5px 2px 2px',
+                    ? 'linear-gradient(to top, #ff6a88 0%, #ffb3a6 100%)'
+                    : 'linear-gradient(to top, #a8b2ff 0%, #d9e3ff 100%)',
+                  border: '1px solid ' + (f.hell ? '#f2a2ab' : '#c3cdf5'), borderRadius: '8px 8px 3px 3px',
                 }} />
               <span className="mono" style={{ fontSize: 8.5, letterSpacing: '.08em', color: f.hell ? 'var(--danger)' : 'var(--faint)' }}>{f.label}</span>
               {f.exams.length > 0 && <span className="mono danger" style={{ fontSize: 8 }}>{'◆'.repeat(f.exams.length)} EXAM</span>}
@@ -72,13 +72,13 @@ export default function PlanView() {
             <span className="micro">PROPOSED — {ghosts.length} SUGGESTION{ghosts.length === 1 ? '' : 'S'}</span>
             {ghosts.length > 0 && <button className="btn sm primary right-align" onClick={acceptAll}>ACCEPT ALL</button>}
           </div>
-          {ghosts.length === 0 && <div className="dim mono" style={{ fontSize: 12 }}>No open proposals. The plan is fully committed.</div>}
+          {ghosts.length === 0 && <div className="empty-note">No open proposals. The plan is fully committed.</div>}
           {ghosts.map(g => {
             const k = classById.get(g.class_id ?? '');
             return (
               <div key={g.id} className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
-                <span className="chip ghost" style={{ borderColor: (k?.color ?? '#7A7A88') + '77' }}>
-                  <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}
+                <span className="chip ghost" style={{ borderColor: (k?.color ?? '#8A8A84') + '77' }}>
+                  <span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}
                 </span>
                 <button onClick={() => openDetail(g.id)} style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, textAlign: 'left', padding: 0, flex: 1 }}>
                   ◇ {g.title}

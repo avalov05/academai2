@@ -39,7 +39,7 @@ export default function PanicModal() {
               <span className="display num" style={{ fontSize: 22, width: 34, color: i === 0 ? '#9BA9F7' : 'rgba(242,241,237,.45)' }}>{String(i + 1).padStart(2, '0')}</span>
               <div style={{ flex: 1 }}>
                 <div className="row">
-                  <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}><span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}</span>
+                  <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}><span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}</span>
                   <button onClick={() => { setPanicOpen(false); openDetail(p.item.id); }}
                     style={{ background: 'none', border: 'none', color: '#f6f5f2', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', padding: 0 }}>
                     {p.item.title}

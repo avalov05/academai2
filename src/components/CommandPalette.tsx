@@ -100,7 +100,7 @@ export default function CommandPalette() {
           )}
           {!isCreate && results.map((r, i) => (
             <div key={r.kind + r.id} className="row" onMouseEnter={() => setSel(i)} onClick={() => run(i)}
-              style={{ padding: '10px 14px', cursor: 'pointer', background: i === sel ? 'rgba(155,169,247,.16)' : 'transparent', borderLeft: i === sel ? '2px solid var(--charcoal)' : '2px solid transparent' }}>
+              style={{ padding: '10px 14px', cursor: 'pointer', background: i === sel ? 'var(--accent-peri)' : 'transparent', borderLeft: i === sel ? '2px solid var(--charcoal)' : '2px solid transparent' }}>
               <span className="mono" style={{ fontSize: 12 }}>{r.label}</span>
               {r.sub && <span className="chip right-align">{r.sub}</span>}
             </div>
