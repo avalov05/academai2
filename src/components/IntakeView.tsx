@@ -126,7 +126,7 @@ export default function IntakeView() {
         <>
           <div className="micro">UNIVERSAL INTAKE — FEED ME ANYTHING</div>
           <h2 className="display" style={{ fontSize: 30, margin: '6px 0 14px' }}>
-            SYLLABUS · SCREENSHOT · EMAIL · <span className="iridescent-text">ANNOUNCEMENT</span>
+            Syllabus · Screenshot · Email · <span className="iridescent-text">Announcement</span>
           </h2>
           <div className="panel corner" style={{ padding: 16 }}
             onDragOver={e => e.preventDefault()}
@@ -277,8 +277,8 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
                 <div key={card.key} className={`panel verdict-${v}`} style={{ padding: '10px 14px', marginBottom: 6 }}>
                   <div className="row">
                     <input type="checkbox" checked={card.include} disabled={v === 'KNOWN'} onChange={() => toggle(card.key)} />
-                    <span className="chip" style={{ borderColor: (k?.color ?? '#6E6250') + '55' }}>
-                      <span className="dot" style={{ background: k?.color ?? '#6E6250' }} />{card.classCode || 'LIFE'}
+                    <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}>
+                      <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{card.classCode || 'LIFE'}
                     </span>
                     <span className="mono faint" style={{ fontSize: 9 }}>{card.incoming.type.toUpperCase()}{!card.incoming.at_home && '·IN-CLASS'}</span>
                     <span style={{ flex: 1 }}>{card.incoming.title}</span>

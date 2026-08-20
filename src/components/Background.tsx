@@ -1,24 +1,31 @@
 'use client';
-// ── Filament field ────────────────────────────────────────────────────────
-// A drift of thin warm sticks aligned to a very slow flow field. The cursor
-// pushes through them like a hand through reeds — they swirl aside, darken
-// slightly, then ease back. Nothing blinks, nothing bounces.
+// ── Pixel field ───────────────────────────────────────────────────────────
+// A chunky cloud of rounded pastel blocks drifting across the off-white ground:
+// coral → pink → lavender → periwinkle, sampled from a slow noise field so the
+// silhouette has stair-step edges and punched-out holes. It breathes over ~30s.
+// The cursor blooms nearby blocks — they brighten and swell, then settle back.
 import { useEffect, useRef } from 'react';
 
-interface Stick {
-  x: number; y: number;        // rest position
-  ox: number; oy: number;      // current positional offset (eased)
-  len: number;
-  angle: number;               // current angle (eased)
-  alpha: number;               // current ink (eased)
-  seed: number;
+const CELL = 32;        // grid pitch — chunky blocks
+const GAP = 6;          // space between blocks
+const RADIUS = 4;       // block corner radius
+const BLOOM = 190;      // cursor influence radius
+
+// coral → pink → lavender → periwinkle
+const STOPS: Array<[number, number, number]> = [
+  [255, 148, 156],
+  [244, 197, 202],
+  [185, 168, 230],
+  [155, 169, 247],
+];
+function ramp(t: number): [number, number, number] {
+  const x = Math.max(0, Math.min(0.999, t)) * (STOPS.length - 1);
+  const i = Math.floor(x), f = x - i;
+  const a = STOPS[i], b = STOPS[Math.min(i + 1, STOPS.length - 1)];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
-const SPACING = 44;      // px between filaments
-const RADIUS = 190;      // cursor influence radius
-const EASE_A = 0.09;     // angle easing
-const EASE_P = 0.10;     // position easing
-const EASE_I = 0.08;     // ink easing
+interface Cell { cx: number; cy: number; u: number; bloom: number; }
 
 export default function Background() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -28,113 +35,91 @@ export default function Background() {
     const ctx = canvas.getContext('2d', { alpha: true })!;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let sticks: Stick[] = [];
-    let W = 0, H = 0, dpr = 1;
-    const pointer = { x: -9999, y: -9999, strength: 0, active: false };
+    let cells: Cell[] = [];
+    let W = 0, H = 0;
+    const pointer = { x: -9999, y: -9999, on: 0, active: false };
 
     const build = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = window.innerWidth; H = window.innerHeight;
-      canvas.width = Math.floor(W * dpr);
-      canvas.height = Math.floor(H * dpr);
-      canvas.style.width = W + 'px';
-      canvas.style.height = H + 'px';
+      canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      sticks = [];
-      const cols = Math.ceil(W / SPACING) + 1;
-      const rows = Math.ceil(H / SPACING) + 1;
+      cells = [];
+      const cols = Math.ceil(W / CELL) + 1;
+      const rows = Math.ceil(H / CELL) + 1;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          // deterministic jitter so the grid never reads as a grid
-          const s = Math.sin(c * 127.1 + r * 311.7) * 43758.5453;
-          const j1 = s - Math.floor(s);
-          const s2 = Math.sin(c * 269.5 + r * 183.3) * 43758.5453;
-          const j2 = s2 - Math.floor(s2);
-          sticks.push({
-            x: c * SPACING + (j1 - 0.5) * SPACING * 0.85,
-            y: r * SPACING + (j2 - 0.5) * SPACING * 0.85,
-            ox: 0, oy: 0,
-            len: 13 + j1 * 12,
-            angle: 0, alpha: 0,
-            seed: j2 * Math.PI * 2,
+          // u = position along the diagonal band → drives the colour ramp
+          cells.push({
+            cx: c * CELL, cy: r * CELL,
+            u: (c * CELL) / Math.max(W, 1) * 0.78 + (1 - (r * CELL) / Math.max(H, 1)) * 0.22,
+            bloom: 0,
           });
         }
       }
     };
 
-    // Smooth, cheap flow field from layered sines — evolves over ~minutes.
-    const flowAngle = (x: number, y: number, t: number) =>
-      Math.sin(x * 0.0052 + t * 0.13) * 1.15 +
-      Math.cos(y * 0.0047 - t * 0.097) * 0.95 +
-      Math.sin((x + y) * 0.0026 + t * 0.061) * 0.7;
+    // Slow layered-sine field: 1 inside the cloud, 0 outside. Stair-step edges
+    // come free because we quantise to the grid.
+    const field = (x: number, y: number, t: number) => {
+      const nx = x / W, ny = y / H;
+      const band =
+        0.52 +
+        0.20 * Math.sin(nx * 3.1 + t * 0.055) +
+        0.15 * Math.sin(ny * 4.3 - t * 0.041) +
+        0.13 * Math.sin((nx + ny) * 5.2 + t * 0.032) +
+        0.09 * Math.sin((nx * 2.6 - ny * 3.4) + t * 0.07);
+      // diagonal falloff so the cloud reads as one big drifting mass
+      const diag = 1 - Math.abs((ny - 0.5) - (nx - 0.5) * 0.34) * 1.95;
+      return band * Math.max(0, diag);
+    };
 
     let raf = 0, last = 0;
     const t0 = performance.now();
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      if (now - last < 22) return;          // ~45fps ceiling
+      if (now - last < 40) return;   // 25fps — it barely moves anyway
       last = now;
       const t = (now - t0) / 1000;
-
       ctx.clearRect(0, 0, W, H);
-      ctx.lineCap = 'round';
 
-      if (!pointer.active && pointer.strength > 0) {
-        pointer.strength = Math.max(0, pointer.strength - 0.025);
-      }
+      if (!pointer.active && pointer.on > 0) pointer.on = Math.max(0, pointer.on - 0.03);
 
-      for (const s of sticks) {
-        let target = flowAngle(s.x, s.y, t) + s.seed * 0.12;
-        let ink = 0.1;
-        let px = 0, py = 0;
+      for (const c of cells) {
+        const v = field(c.cx, c.cy, t);
+        if (v < 0.54) { c.bloom *= 0.9; continue; }   // outside the cloud → hole
 
-        if (pointer.strength > 0.01) {
-          const dx = s.x - pointer.x, dy = s.y - pointer.y;
-          const d = Math.hypot(dx, dy);
-          if (d < RADIUS) {
-            const f = (1 - d / RADIUS) ** 2 * pointer.strength;
-            // swirl tangentially around the cursor
-            const tangential = Math.atan2(dy, dx) + Math.PI / 2;
-            // shortest-path blend so filaments never spin the long way round
-            let diff = tangential - target;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            target += diff * f;
-            // and drift outward a touch
-            const push = f * 16;
-            px = (dx / (d || 1)) * push;
-            py = (dy / (d || 1)) * push;
-            ink = 0.1 + f * 0.3;
-          }
+        // cursor bloom
+        let target = 0;
+        if (pointer.on > 0.01) {
+          const d = Math.hypot(c.cx - pointer.x, c.cy - pointer.y);
+          if (d < BLOOM) target = (1 - d / BLOOM) ** 2 * pointer.on;
         }
+        c.bloom += (target - c.bloom) * (reduced ? 1 : 0.12);
 
-        // ease toward targets (this is what makes them settle back)
-        let d2 = target - s.angle;
-        while (d2 > Math.PI) d2 -= Math.PI * 2;
-        while (d2 < -Math.PI) d2 += Math.PI * 2;
-        s.angle += d2 * (reduced ? 1 : EASE_A);
-        s.ox += (px - s.ox) * (reduced ? 1 : EASE_P);
-        s.oy += (py - s.oy) * (reduced ? 1 : EASE_P);
-        s.alpha += (ink - s.alpha) * (reduced ? 1 : EASE_I);
+        const strength = Math.min(1, (v - 0.54) / 0.30);
+        const [r, g, b] = ramp(c.u + Math.sin(t * 0.05 + c.cy * 0.004) * 0.05);
+        // quiet by default; the cursor is what makes the cloud show itself
+        const alpha = (0.05 + strength * 0.13) * (1 + c.bloom * 3.4);
+        const grow = c.bloom * 4.5;
+        const size = CELL - GAP + grow;
+        const off = (CELL - size) / 2;
 
-        const hx = (Math.cos(s.angle) * s.len) / 2;
-        const hy = (Math.sin(s.angle) * s.len) / 2;
-        const cx = s.x + s.ox, cy = s.y + s.oy;
-        ctx.strokeStyle = `rgba(120, 94, 58, ${s.alpha.toFixed(3)})`;
-        ctx.lineWidth = 1 + s.alpha * 1.6;
+        ctx.fillStyle = `rgba(${r | 0}, ${g | 0}, ${b | 0}, ${Math.min(0.62, alpha).toFixed(3)})`;
+        const x = c.cx + off, y = c.cy + off, rad = RADIUS + grow * 0.4;
         ctx.beginPath();
-        ctx.moveTo(cx - hx, cy - hy);
-        ctx.lineTo(cx + hx, cy + hy);
-        ctx.stroke();
+        if (ctx.roundRect) ctx.roundRect(x, y, size, size, rad);
+        else ctx.rect(x, y, size, size);
+        ctx.fill();
       }
     };
 
     const onMove = (e: PointerEvent) => {
       pointer.x = e.clientX; pointer.y = e.clientY;
       pointer.active = true;
-      pointer.strength = Math.min(1, pointer.strength + 0.16);
+      pointer.on = Math.min(1, pointer.on + 0.2);
     };
     const onLeave = () => { pointer.active = false; };
     const onResize = () => build();
@@ -150,7 +135,6 @@ export default function Background() {
     document.addEventListener('pointerleave', onLeave);
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVis);
-
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
@@ -163,9 +147,8 @@ export default function Background() {
 
   return (
     <>
-      <div className="bg-blobs" aria-hidden><i /><i /><i /></div>
       <canvas ref={ref} className="bg-canvas" aria-hidden />
-      <div className="bg-noise" aria-hidden />
+      <div className="bg-edges" aria-hidden />
     </>
   );
 }

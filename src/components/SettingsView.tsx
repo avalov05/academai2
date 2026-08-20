@@ -17,7 +17,7 @@ export default function SettingsView() {
   return (
     <div className="view-enter" style={{ maxWidth: 760, margin: '0 auto' }}>
       <div className="micro">SYSTEM CONFIGURATION</div>
-      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>SETTINGS</h2>
+      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>Settings</h2>
 
       <section className="panel corner" style={{ padding: 16, marginBottom: 14 }}>
         <i className="c3" />
@@ -40,7 +40,7 @@ export default function SettingsView() {
       <section className="panel corner" style={{ padding: 16, marginBottom: 14 }}>
         <i className="c3" />
         <div className="micro" style={{ marginBottom: 10 }}>PHONE ALARMS — LIVE CALENDAR FEED (ICS)</div>
-        <div className="mono" style={{ fontSize: 11, wordBreak: 'break-all', padding: 10, background: 'rgba(8,10,12,.7)', border: '1px solid var(--line)' }}>
+        <div className="mono" style={{ fontSize: 11, wordBreak: 'break-all', padding: 10, background: 'rgba(255,255,255,.7)', border: '1px solid var(--line)', borderRadius: 6 }}>
           {IS_DEMO ? '(available after deploy)' : icsUrl}
         </div>
         <div className="row" style={{ marginTop: 10 }}>

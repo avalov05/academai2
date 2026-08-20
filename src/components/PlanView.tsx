@@ -33,7 +33,7 @@ export default function PlanView() {
   return (
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="micro">COLLISION FORECAST — {forecast.filter(f => f.hell).length} HELL WEEK{forecast.filter(f => f.hell).length === 1 ? '' : 'S'} DETECTED</div>
-      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>THE NEXT <span className="iridescent-text">{forecast.length} WEEKS</span></h2>
+      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>The next <span className="iridescent-text">{forecast.length} weeks</span></h2>
 
       <div className="panel corner" style={{ padding: 18 }}>
         <i className="c3" />
@@ -49,9 +49,9 @@ export default function PlanView() {
                   width: '100%', maxWidth: 54,
                   height: `${Math.max(3, (f.ratio / Math.max(maxRatio, 1)) * 100)}%`,
                   background: f.hell
-                    ? 'linear-gradient(to top, rgba(192,64,42,.82), rgba(201,138,30,.62))'
-                    : 'linear-gradient(to top, rgba(122,122,60,.55), rgba(210,113,44,.30))',
-                  border: '1px solid ' + (f.hell ? 'rgba(192,64,42,.55)' : 'var(--line)'), borderRadius: '8px 8px 4px 4px',
+                    ? 'linear-gradient(to top, rgba(228,86,110,.85), rgba(255,148,156,.55))'
+                    : 'linear-gradient(to top, rgba(155,169,247,.75), rgba(221,221,246,.5))',
+                  border: '1px solid ' + (f.hell ? 'rgba(228,86,110,.5)' : 'var(--line)'), borderRadius: '5px 5px 2px 2px',
                 }} />
               <span className="mono" style={{ fontSize: 8.5, letterSpacing: '.08em', color: f.hell ? 'var(--danger)' : 'var(--faint)' }}>{f.label}</span>
               {f.exams.length > 0 && <span className="mono danger" style={{ fontSize: 8 }}>{'◆'.repeat(f.exams.length)} EXAM</span>}
@@ -77,8 +77,8 @@ export default function PlanView() {
             const k = classById.get(g.class_id ?? '');
             return (
               <div key={g.id} className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
-                <span className="chip ghost" style={{ borderColor: (k?.color ?? '#6E6250') + '77' }}>
-                  <span className="dot" style={{ background: k?.color ?? '#6E6250' }} />{k?.code ?? 'LIFE'}
+                <span className="chip ghost" style={{ borderColor: (k?.color ?? '#7A7A88') + '77' }}>
+                  <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}
                 </span>
                 <button onClick={() => openDetail(g.id)} style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, textAlign: 'left', padding: 0, flex: 1 }}>
                   ◇ {g.title}
@@ -91,12 +91,12 @@ export default function PlanView() {
           })}
         </section>
 
-        <section className="panel corner" style={{ padding: 16 }}>
+        <section className="panel corner dark" style={{ padding: 18 }}>
           <i className="c3" />
-          <div className="micro" style={{ marginBottom: 10 }}>INTEGRITY METER — THE 4.0 LEDGER</div>
+          <div className="micro" style={{ marginBottom: 12 }}>INTEGRITY METER — THE 4.0 LEDGER</div>
           <div className="row" style={{ gap: 24 }}>
             <div>
-              <div className="display num" style={{ fontSize: 46, color: intg.missed === 0 ? 'var(--ok)' : 'var(--danger)' }}>{intg.missed === 0 ? '0' : intg.missed}</div>
+              <div className="display num" style={{ fontSize: 46, color: intg.missed === 0 ? '#7FD1C4' : '#FF949C' }}>{intg.missed === 0 ? '0' : intg.missed}</div>
               <div className="micro">MISSED — EVER</div>
             </div>
             <div>
@@ -109,7 +109,7 @@ export default function PlanView() {
             </div>
           </div>
           <div className="bar" style={{ marginTop: 14 }}>
-            <i style={{ width: `${intg.pct}%`, background: intg.pct >= 95 ? 'var(--ok)' : intg.pct >= 80 ? 'var(--warn)' : 'var(--danger)' }} />
+            <i style={{ width: `${intg.pct}%`, background: intg.pct >= 95 ? '#7FD1C4' : intg.pct >= 80 ? '#F4C5CA' : '#FF949C' }} />
           </div>
           <div className="mono dim" style={{ fontSize: 10, marginTop: 6 }}>{intg.pct}% ON-TIME COMPLETION{intg.late ? ` · ${intg.late} LATE` : ''}</div>
         </section>

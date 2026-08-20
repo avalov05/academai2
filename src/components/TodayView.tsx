@@ -26,8 +26,8 @@ export default function TodayView() {
       <div className="boot-in" style={delay()}>
         <div className="micro">DAILY BRIEF · DAY {String(Math.max(1, dayN)).padStart(2, '0')} OF SEMESTER</div>
         <h1 className="display" style={{ fontSize: 'clamp(34px, 6vw, 64px)', margin: '6px 0 4px' }}>
-          {fmtEt(now, 'EEEE').toUpperCase()}<br />
-          <span className="iridescent-text">{fmtEt(now, 'MMMM d').toUpperCase()}</span>
+          {fmtEt(now, 'EEEE')}<br />
+          <span className="iridescent-text">{fmtEt(now, 'MMMM d')}</span>
         </h1>
         <div className="mono dim" style={{ fontSize: 12 }}>{fmtEt(now, 'HH:mm')} ET · SYSTEM CHECK: {b.overdue.length ? <span className="danger">{b.overdue.length} OVERDUE</span> : <span className="ok">NOMINAL</span>} · {b.dueToday.length} DUE · {b.meetings.length} MEETINGS</div>
       </div>
@@ -114,8 +114,8 @@ function RowItem({ it, cls, now, onOpen, onDone, danger, startMode }: {
   return (
     <div className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
       <input type="checkbox" checked={false} onChange={onDone} title="Mark done" />
-      <span className="chip" style={{ borderColor: (cls?.color ?? '#6E6250') + '55' }}>
-        <span className="dot" style={{ background: cls?.color ?? '#6E6250' }} />{cls?.code ?? 'LIFE'}
+      <span className="chip" style={{ borderColor: (cls?.color ?? '#7A7A88') + '55' }}>
+        <span className="dot" style={{ background: cls?.color ?? '#7A7A88' }} />{cls?.code ?? 'LIFE'}
       </span>
       <span className="mono faint" style={{ fontSize: 9 }}>{TYPE_GLYPH[it.type]}</span>
       <button onClick={onOpen} style={{ background: 'none', border: 'none', color: danger ? 'var(--danger)' : 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', padding: 0, flex: 1 }} className={danger ? 'glitch-hover' : ''}>

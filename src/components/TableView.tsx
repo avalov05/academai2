@@ -117,7 +117,7 @@ export default function TableView() {
                       ? <button className="btn sm ghosty" onClick={() => acceptGhost(it.id)} title="Accept proposal">＋</button>
                       : <input type="checkbox" checked={it.status === 'done'} onChange={() => setStatus(it.id, it.status === 'done' ? 'pending' : 'done')} />}
                   </td>
-                  <td><span className="chip" style={{ borderColor: (k?.color ?? '#6E6250') + '55' }}><span className="dot" style={{ background: k?.color ?? '#6E6250' }} />{k?.code ?? 'LIFE'}</span></td>
+                  <td><span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}><span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}</span></td>
                   <td className="mono dim" style={{ fontSize: 10 }}>{TYPE_GLYPH[it.type]}{it.at_home === false ? '·IC' : ''}</td>
                   <td style={{ maxWidth: 340 }}>
                     <span className={over ? 'danger glitch' : ''}>{it.ghost ? <span className="faint">◇ </span> : null}{it.title}</span>
@@ -131,7 +131,7 @@ export default function TableView() {
                   </td>
                   <td style={{ width: 80 }}>
                     <div className="bar" style={{ width: 64 }}>
-                      <i style={{ width: `${itemImpact(it) * 100}%`, background: over ? 'var(--danger)' : (k?.color ?? '#6E6250') }} />
+                      <i style={{ width: `${itemImpact(it) * 100}%`, background: over ? 'var(--danger)' : (k?.color ?? '#7A7A88') }} />
                     </div>
                   </td>
                   <td className="mono dim" style={{ fontSize: 11 }}>{it.effort_min ? `${it.effort_min}m` : '—'}</td>

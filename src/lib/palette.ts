@@ -1,14 +1,16 @@
-// ── Warm editorial palette ───────────────────────────────────────────────
-// Earthy, low-chroma hues that stay legible on cream and never read "neon".
+// ── Editorial pastel-tech palette ────────────────────────────────────────
+// Class colours are mid-tone (not pale pastel) so blips stay legible on the
+// off-white ground, but stay in the dusty pink → lavender → periwinkle family
+// with a few separated hues so eight classes never read alike.
 export const CLASS_COLORS = [
-  '#C2612F', // terracotta
-  '#7A7A3C', // olive
-  '#9C5A48', // clay
-  '#B08529', // ochre
-  '#6E6250', // umber grey
-  '#A8563E', // burnt sienna
-  '#87703A', // moss gold
-  '#8C4A52', // dusty rose-brown
+  '#E4566E', // rose
+  '#4A72EE', // periwinkle
+  '#8763DE', // violet
+  '#1F9E96', // teal
+  '#DE7BB0', // orchid
+  '#E0894A', // apricot
+  '#5B8C3E', // moss
+  '#3C4A8C', // indigo
 ];
 
 export function nextColor(used: string[]): string {
@@ -17,19 +19,24 @@ export function nextColor(used: string[]): string {
 }
 
 export const UI = {
-  bg: '#F7F0E3',        // page ivory
-  panelBg: '#E9D6AE',   // hero beige
-  card: 'rgba(255,252,246,0.74)',
-  line: 'rgba(60,45,25,0.14)',
-  lineStrong: 'rgba(60,45,25,0.26)',
-  text: '#1C1B19',
-  dim: 'rgba(28,27,25,0.62)',
-  faint: 'rgba(28,27,25,0.36)',
-  danger: '#C0402A',    // deep vermilion, not neon
-  warn: '#C98A1E',      // amber
-  ok: '#5E7A46',        // moss green
-  accent: '#D2712C',    // warm orange
-  ink: '#171717',
+  bg: '#F2F1ED',
+  bgAlt: '#F6F5F2',
+  charcoal: '#292929',
+  text: '#292929',
+  dim: '#555555',
+  faint: 'rgba(41,41,41,0.38)',
+  line: 'rgba(41,41,41,0.13)',
+  lineStrong: 'rgba(41,41,41,0.26)',
+  danger: '#E4566E',
+  warn: '#E0894A',
+  ok: '#1F9E96',
+  accent: '#8763DE',
+  // decorative pastels (pixel cloud, card feet)
+  pink: '#FF949C',
+  pinkSoft: '#F4C5CA',
+  lavender: '#B9A8E6',
+  periwinkle: '#9BA9F7',
+  paleLavender: '#DDDDF6',
 };
 
 export const TYPE_GLYPH: Record<string, string> = {

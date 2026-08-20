@@ -126,14 +126,18 @@ export function panicPlan(data: AppData, now: Date, freeMinutes: number): PanicP
   const picks: PanicPick[] = [];
   let left = freeMinutes;
   const active = data.items.filter(it => isActive(it) && it.type !== 'social')
-    .filter(it => it.due_at);
+    .filter(it => it.due_at)
+    // Sit-down events (in-class exams/quizzes) aren't work you can do in a free
+    // window — their study blocks are. Zero-effort items also divided to
+    // Infinity in the score below and monopolised the top slots.
+    .filter(it => effortOf(it) > 0);
   const scored = active.map(it => {
     const ms = new Date(it.due_at!).getTime() - now.getTime();
     const days = Math.max(-1, ms / 86400000);
     const urgency = days < 0 ? 3 : 1 / Math.max(0.15, Math.min(days, 14) / 2 + 0.2);
     const impact = itemImpact(it);
     const eff = effortOf(it);
-    const score = urgency * impact * 100 / Math.sqrt(eff);
+    const score = (urgency * impact * 100) / Math.sqrt(Math.max(15, eff));
     const why = days < 0 ? 'OVERDUE — stop the bleeding'
       : days < 1 ? 'due within 24h'
       : days < 3 ? `due in ${Math.ceil(days)}d, high value per minute`

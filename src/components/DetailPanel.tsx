@@ -25,8 +25,8 @@ export default function DetailPanel() {
       <div className="overlay-dim" onClick={() => openDetail(null)} />
       <aside className="slideover">
         <div className="row" style={{ marginBottom: 14 }}>
-          <span className="chip" style={{ borderColor: (k?.color ?? '#6E6250') + '66' }}>
-            <span className="dot" style={{ background: k?.color ?? '#6E6250' }} />{k?.code ?? 'LIFE'}
+          <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '66' }}>
+            <span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}
           </span>
           {it.ghost && <span className="chip ghost warn">PROPOSED — NOT COMMITTED</span>}
           <button className="btn sm right-align" onClick={() => openDetail(null)}>ESC ✕</button>

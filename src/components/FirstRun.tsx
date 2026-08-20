@@ -38,7 +38,7 @@ export default function FirstRun() {
     <div className="view-enter" style={{ maxWidth: 720, margin: '0 auto', paddingTop: 12 }}>
       <div className="micro">COLD START · NO DATA IN SYSTEM</div>
       <h1 className="display" style={{ fontSize: 'clamp(30px,5vw,52px)', margin: '8px 0 4px' }}>
-        INITIALIZE <span className="iridescent-text">ACADEMAI</span>
+        Initialize <span className="iridescent-text">AcademAI</span>
       </h1>
       <div className="mono dim" style={{ fontSize: 12, marginBottom: 22 }}>
         THREE STEPS. THEN PASTE A SYLLABUS AND THE RADAR FILLS ITSELF.

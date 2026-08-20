@@ -99,5 +99,25 @@ ok(!ics.split('\r\n').some(l => l.length > 76), 'ics line folding');
 // due 2026-09-03T03:59Z = 2026-09-02 23:59 ET
 ok(ics.includes('DTSTART;TZID=America/New_York:20260902T235900'), 'ics due local time');
 
+// ── panic planner ──
+import { panicPlan } from '../src/lib/planner';
+const nowD = new Date('2026-09-01T15:00:00Z');
+const panicData = {
+  semester: sem, holidays: [], classes: [k], components: [], sources: [], scores: [],
+  settings: { gemini_key: '', gemini_model: '', ics_token: 't', sound_on: false, free_min_weekday: 240, free_min_weekend: 420 },
+  items: [
+    mk({ title: 'Midterm 1', type: 'exam', at_home: false, effort_min: 0, due_at: '2026-09-10T13:35:00.000Z' }),
+    mk({ title: 'Quiz (in class)', type: 'quiz', at_home: false, effort_min: 0, due_at: '2026-09-04T13:35:00.000Z' }),
+    mk({ title: 'Problem Set 5', type: 'assignment', effort_min: 120, due_at: '2026-09-02T03:59:00.000Z' }),
+    mk({ title: 'Study: Midterm 1 (T-5)', type: 'study', effort_min: 90, due_at: '2026-09-05T03:59:00.000Z' }),
+  ],
+};
+const picks = panicPlan(panicData, nowD, 90);
+ok(picks.length > 0, 'panic returns picks');
+ok(!picks.some(p => p.minutes === 0), 'no zero-minute picks');
+ok(!picks.some(p => p.item.type === 'exam'), 'sit-down exams excluded from panic plan');
+ok(picks[0].item.title === 'Problem Set 5', `most urgent real work first, got ${picks[0].item.title}`);
+ok(picks.reduce((a, p) => a + p.minutes, 0) <= 90, 'total minutes within the window');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -11,7 +11,7 @@ export default function GradesView() {
   return (
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="micro">GRADE TELEMETRY — TARGET: STRAIGHT A&apos;S</div>
-      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>THE <span className="iridescent-text">4.0</span> LEDGER</h2>
+      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>The <span className="iridescent-text">4.0</span> Ledger</h2>
       {data.classes.length === 0 && <div className="dim mono">Add classes first — grading schemes ride in with each syllabus.</div>}
       {data.classes.map(k => <GradeCard key={k.id} k={k} />)}
     </div>

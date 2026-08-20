@@ -9,9 +9,9 @@ import { humanDelta, fmtEt } from '@/lib/time';
 import { sfx } from '@/lib/sound';
 import { TYPE_GLYPH } from '@/lib/palette';
 
-const LIFE = '#6E6250';
-const INK = '#1C1B19';
-const OVERDUE = '#C0402A';
+const LIFE = '#7A7A88';
+const INK = '#292929';
+const OVERDUE = '#E4566E';
 
 // hours-until-due → radius fraction (piecewise)
 const ANCHORS: Array<[number, number]> = [
@@ -86,20 +86,20 @@ export default function Radar() {
       ctx.lineWidth = 1;
       for (const [f, label] of rings) {
         ctx.beginPath();
-        ctx.strokeStyle = f === 0.13 ? 'rgba(192,64,42,0.30)' : 'rgba(60,45,25,0.15)';
+        ctx.strokeStyle = f === 0.13 ? 'rgba(228,86,110,0.34)' : 'rgba(41,41,41,0.13)';
         ctx.setLineDash(f === 0.965 ? [] : [2, 6]);
         ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.font = '500 9px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(28,27,25,0.34)';
+        ctx.fillStyle = 'rgba(41,41,41,0.34)';
         ctx.textAlign = 'center';
         ctx.fillText(label, cx, cy - R * f - 5);
       }
       // sector separators + labels
       for (const [, s] of sectors) {
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(60,45,25,0.10)';
+        ctx.strokeStyle = 'rgba(41,41,41,0.09)';
         ctx.moveTo(cx + Math.cos(s.a0) * R * 0.13, cy + Math.sin(s.a0) * R * 0.13);
         ctx.lineTo(cx + Math.cos(s.a0) * R, cy + Math.sin(s.a0) * R);
         ctx.stroke();
@@ -114,7 +114,7 @@ export default function Radar() {
         ctx.restore();
       }
       // crosshair
-      ctx.strokeStyle = 'rgba(28,27,25,0.30)';
+      ctx.strokeStyle = 'rgba(41,41,41,0.34)';
       ctx.beginPath();
       ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
       ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7);
@@ -125,10 +125,10 @@ export default function Radar() {
       const sw = sweepRef.current - Math.PI / 2;
       const grad = ctx.createConicGradient ? (() => {
         const g = ctx.createConicGradient(sw - 0.9, cx, cy);
-        g.addColorStop(0, 'rgba(210,113,44,0)');
-        g.addColorStop(0.12, 'rgba(210,113,44,0.09)');
-        g.addColorStop(0.125, 'rgba(210,113,44,0)');
-        g.addColorStop(1, 'rgba(210,113,44,0)');
+        g.addColorStop(0, 'rgba(155,169,247,0)');
+        g.addColorStop(0.12, 'rgba(155,169,247,0.14)');
+        g.addColorStop(0.125, 'rgba(155,169,247,0)');
+        g.addColorStop(1, 'rgba(155,169,247,0)');
         return g;
       })() : null;
       if (grad) {
@@ -139,8 +139,8 @@ export default function Radar() {
         ctx.fill();
       }
       const swGrad = ctx.createLinearGradient(cx, cy, cx + Math.cos(sw) * R, cy + Math.sin(sw) * R);
-      swGrad.addColorStop(0, 'rgba(210,113,44,0.34)');
-      swGrad.addColorStop(1, 'rgba(210,113,44,0)');
+      swGrad.addColorStop(0, 'rgba(41,41,41,0.30)');
+      swGrad.addColorStop(1, 'rgba(155,169,247,0)');
       ctx.strokeStyle = swGrad;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
@@ -173,7 +173,7 @@ export default function Radar() {
         // inbound trajectory trail
         if (!overdue) {
           ctx.beginPath();
-          ctx.strokeStyle = color + '55';
+          ctx.strokeStyle = color + '4D';
           ctx.lineWidth = 1;
           ctx.setLineDash(it.ghost ? [2, 4] : []);
           const tr = r + 14 + itemImpact(it) * 10;
@@ -196,19 +196,15 @@ export default function Radar() {
           ctx.strokeStyle = color + '99'; ctx.lineWidth = 1.3; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
         } else {
           ctx.fillStyle = color;
-          ctx.shadowColor = 'rgba(50,35,15,0.30)';
-          ctx.shadowBlur = overdue ? 14 : 7;
-          ctx.shadowOffsetY = 2;
           ctx.fill();
-          ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-          ctx.strokeStyle = 'rgba(255,252,246,0.85)'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.strokeStyle = 'rgba(250,249,246,0.95)'; ctx.lineWidth = 1.4; ctx.stroke();
         }
         ctx.restore();
         // overdue alert rings
         if (overdue) {
           const ph = (t / 1400) % 1;
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(192,64,42,${0.42 * (1 - ph)})`;
+          ctx.strokeStyle = `rgba(228,86,110,${0.45 * (1 - ph)})`;
           ctx.lineWidth = 1.4;
           ctx.arc(x, y, size + ph * 24, 0, Math.PI * 2);
           ctx.stroke();
@@ -241,7 +237,7 @@ export default function Radar() {
           // leader line when the label had to move
           if (Math.abs(ly - l.y) > 3) {
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(28,27,25,0.20)';
+            ctx.strokeStyle = 'rgba(41,41,41,0.22)';
             ctx.lineWidth = 1;
             ctx.moveTo(l.x + (side ? l.size + 2 : -l.size - 2), l.y);
             ctx.lineTo(lx - (side ? 3 : -3), ly - 3);
@@ -249,14 +245,14 @@ export default function Radar() {
           }
           ctx.lineWidth = 3.2; ctx.lineJoin = 'round';
           ctx.font = '600 9.5px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(247,240,227,0.92)';
+          ctx.strokeStyle = 'rgba(242,241,237,0.94)';
           ctx.strokeText(l.title, lx, ly - 3);
           ctx.fillStyle = l.overdue ? OVERDUE : INK;
           ctx.fillText(l.title, lx, ly - 3);
           ctx.font = '500 9px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(247,240,227,0.92)';
+          ctx.strokeStyle = 'rgba(242,241,237,0.94)';
           ctx.strokeText(l.delta, lx, ly + 8);
-          ctx.fillStyle = l.overdue ? 'rgba(192,64,42,0.75)' : 'rgba(28,27,25,0.52)';
+          ctx.fillStyle = l.overdue ? 'rgba(228,86,110,0.85)' : 'rgba(41,41,41,0.55)';
           ctx.fillText(l.delta, lx, ly + 8);
         }
       }
@@ -268,7 +264,7 @@ export default function Radar() {
       if (overCount) {
         ctx.font = '700 10px Inter, sans-serif';
         ctx.lineWidth = 3; ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(247,240,227,0.9)';
+        ctx.strokeStyle = 'rgba(242,241,237,0.94)';
         ctx.strokeText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);
         ctx.fillStyle = OVERDUE;
         ctx.fillText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);

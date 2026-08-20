@@ -17,11 +17,11 @@ export default function PanicModal() {
 
   return (
     <div className="modal-wrap" onClick={() => setPanicOpen(false)}>
-      <div className="modal panel-solid corner" style={{ padding: 22 }} onClick={e => e.stopPropagation()}>
+      <div className="modal panel-solid corner dark" style={{ padding: 24 }} onClick={e => e.stopPropagation()}>
         <i className="c3" />
-        <div className="micro danger">PANIC PROTOCOL</div>
+        <div className="micro" style={{ color: "#FF949C" }}>PANIC PROTOCOL</div>
         <h2 className="display" style={{ fontSize: 30, margin: '6px 0 2px' }}>
-          I HAVE <span className="iridescent-text num">{mins}</span> MINUTES
+          I have <span className="iridescent-text num">{mins}</span> minutes
         </h2>
         <div className="mono dim" style={{ fontSize: 11, marginBottom: 14 }}>OPTIMIZED BY URGENCY × GRADE IMPACT ÷ EFFORT. NO THINKING REQUIRED — EXECUTE.</div>
         <div className="row" style={{ marginBottom: 6 }}>
@@ -30,18 +30,18 @@ export default function PanicModal() {
           ))}
           <input type="range" min={15} max={300} step={15} value={mins} onChange={e => setMins(Number(e.target.value))} style={{ flex: 1 }} />
         </div>
-        <hr className="hairline" style={{ margin: '12px 0' }} />
-        {picks.length === 0 && <div className="mono ok" style={{ padding: 20, textAlign: 'center', fontSize: 13 }}>NOTHING URGENT. THE RADAR IS QUIET — REST OR GET AHEAD.</div>}
+        <hr className="hairline" style={{ margin: '12px 0', borderColor: 'rgba(255,255,255,.14)' }} />
+        {picks.length === 0 && <div className="mono ok" style={{ padding: 20, textAlign: 'center', fontSize: 13 }}>Nothing urgent. The radar is quiet — rest, or get ahead.</div>}
         {picks.map((p, i) => {
           const k = classById.get(p.item.class_id ?? '');
           return (
-            <div key={p.item.id} className="row" style={{ padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-              <span className="display num" style={{ fontSize: 22, width: 34, color: i === 0 ? 'var(--acc)' : 'var(--dim)' }}>{String(i + 1).padStart(2, '0')}</span>
+            <div key={p.item.id} className="row" style={{ padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+              <span className="display num" style={{ fontSize: 22, width: 34, color: i === 0 ? '#9BA9F7' : 'rgba(242,241,237,.45)' }}>{String(i + 1).padStart(2, '0')}</span>
               <div style={{ flex: 1 }}>
                 <div className="row">
-                  <span className="chip" style={{ borderColor: (k?.color ?? '#6E6250') + '55' }}><span className="dot" style={{ background: k?.color ?? '#6E6250' }} />{k?.code ?? 'LIFE'}</span>
+                  <span className="chip" style={{ borderColor: (k?.color ?? '#7A7A88') + '55' }}><span className="dot" style={{ background: k?.color ?? '#7A7A88' }} />{k?.code ?? 'LIFE'}</span>
                   <button onClick={() => { setPanicOpen(false); openDetail(p.item.id); }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', padding: 0 }}>
+                    style={{ background: 'none', border: 'none', color: '#f6f5f2', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', padding: 0 }}>
                     {p.item.title}
                   </button>
                 </div>
@@ -49,7 +49,7 @@ export default function PanicModal() {
                   {p.why}{p.item.due_at ? ` · due in ${humanDelta(new Date(p.item.due_at).getTime() - now.getTime())}` : ''}
                 </div>
               </div>
-              <span className="mono acc num" style={{ fontSize: 13 }}>{p.minutes}m</span>
+              <span className="mono num" style={{ fontSize: 13, color: "#9BA9F7" }}>{p.minutes}m</span>
               <button className="btn sm" onClick={() => setStatus(p.item.id, 'done')}>DONE ✓</button>
             </div>
           );

@@ -2,7 +2,7 @@
 import pw from 'playwright';
 const { chromium } = pw;
 const BASE = 'http://localhost:3777';
-const outDir = '/tmp/shots2';
+const outDir = '/tmp/shots3';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })).newPage();
 const errs = [];

@@ -25,7 +25,7 @@ function seed(): AppData {
   ];
   const ch: Klass = {
     id: uid(), semester_id: semester.id, code: 'CH 221', name: 'Organic Chemistry I',
-    color: '#C2612F', target_pct: 93, notes: '', created_at: new Date().toISOString(),
+    color: '#E4566E', target_pct: 93, notes: '', created_at: new Date().toISOString(),
     grading: [
       { name: 'Problem Sets', weight_pct: 20, drops: 1 },
       { name: 'Quizzes', weight_pct: 15, drops: 1 },
@@ -35,7 +35,7 @@ function seed(): AppData {
   };
   const bio: Klass = {
     id: uid(), semester_id: semester.id, code: 'BIO 183', name: 'Intro Biology: Cellular & Molecular',
-    color: '#7A7A3C', target_pct: 93, notes: '', created_at: new Date().toISOString(),
+    color: '#4A72EE', target_pct: 93, notes: '', created_at: new Date().toISOString(),
     grading: [
       { name: 'Homework', weight_pct: 25 }, { name: 'Exams', weight_pct: 45 },
       { name: 'Final', weight_pct: 20 }, { name: 'Participation', weight_pct: 10 },
@@ -43,7 +43,7 @@ function seed(): AppData {
   };
   const phi: Klass = {
     id: uid(), semester_id: semester.id, code: 'PHI 205', name: 'Bioethics (Async)',
-    color: '#9C5A48', target_pct: 93, notes: 'Fully asynchronous', created_at: new Date().toISOString(),
+    color: '#8763DE', target_pct: 93, notes: 'Fully asynchronous', created_at: new Date().toISOString(),
     grading: [
       { name: 'Discussion Posts', weight_pct: 30 }, { name: 'Papers', weight_pct: 50 },
       { name: 'Final Reflection', weight_pct: 20 },
@@ -51,7 +51,7 @@ function seed(): AppData {
   };
   const mth: Klass = {
     id: uid(), semester_id: semester.id, code: 'MA 242', name: 'Calculus III',
-    color: '#B08529', target_pct: 93, notes: '', created_at: new Date().toISOString(),
+    color: '#1F9E96', target_pct: 93, notes: '', created_at: new Date().toISOString(),
     grading: [
       { name: 'WebAssign', weight_pct: 15 }, { name: 'Quizzes', weight_pct: 10 },
       { name: 'Tests', weight_pct: 45 }, { name: 'Final', weight_pct: 30 },
