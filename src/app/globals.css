@@ -64,15 +64,7 @@ body {
 
 /* ── background ── */
 .bg-canvas { position: fixed; inset: 0; z-index: -2; }
-/* narrow lavender-gray strips at the extreme edges — the "physical panel" cue */
-.bg-edges { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-.bg-edges::before, .bg-edges::after {
-  content: ''; position: absolute; top: 0; bottom: 0; width: 26px;
-  background: linear-gradient(90deg, rgba(150,148,168,0.13), rgba(150,148,168,0.01));
-}
-.bg-edges::before { left: 0; }
-.bg-edges::after { right: 0; transform: scaleX(-1); }
-.bg-blobs, .bg-noise { display: none; }
+.bg-edges, .bg-blobs, .bg-noise { display: none; }
 
 /* ── typography ── */
 .micro {
@@ -325,7 +317,6 @@ a:hover { border-bottom-color: var(--charcoal); }
   table.swiss th, table.swiss td { padding: 8px 7px; font-size: 12px; }
   .modal { width: 94vw; }
   .blip-tip { max-width: 74vw; }
-  .bg-edges::before, .bg-edges::after { width: 10px; }
 }
 
 /* ── iteration 2: finish the card interiors ─────────────────────────────── */

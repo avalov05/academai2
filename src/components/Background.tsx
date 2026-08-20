@@ -1,18 +1,38 @@
 'use client';
-// ── Pixel mass ────────────────────────────────────────────────────────────
-// One connected blocky shape — no gaps between cells — filled with a single
-// saturated gradient (coral → pink → violet → periwinkle). Cells are drawn as
-// overlapping rounded rects so neighbours fuse into a continuous silhouette
-// with soft outer corners and punched-out holes, like the reference graphic.
-// It drifts and re-forms over ~40s, fringe blocks flicker in and out, and the
-// cursor pushes a brighter bloom through the mass.
+// ── Pixel field ───────────────────────────────────────────────────────────
+// A quiet, always-there texture rather than an animation you notice.
+//
+// The geometry never changes — every cell is drawn at the same size, every
+// frame. Only its *opacity* moves, and only in small quantised steps. That is
+// what makes it smooth: nothing ever pops into or out of existence, nothing
+// grows or shrinks, so there is no churn at the silhouette edge.
+//
+// A very slow field (60–110s periods) decides each cell's opacity level. A
+// fixed per-cell dither offsets the level thresholds, so the boundaries
+// between levels break up into stair-stepped pixel edges instead of marching
+// across the screen as visible contour lines. Cells are drawn slightly
+// oversized so neighbours touch and fuse into one soft-cornered mass.
+//
+// The cursor adds a wide, gently-falling boost to the same field, so it reads
+// as light passing behind the page — smooth by construction, since it feeds
+// the identical easing path as everything else.
 import { useEffect, useRef } from 'react';
 
-const CELL = 34;      // block pitch
-const R = 9;          // corner radius / neighbour overlap
-const BLOOM = 210;
+const CELL = 26;          // block pitch
+const OVERLAP = 1.5;      // draw slightly large so neighbours fuse
+const RADIUS = 6;
+const LEVELS = 5;         // opacity steps
+const MAX_ALPHA = 0.2;    // ceiling — this is a background
+const BLOOM_R = 240;      // cursor influence radius
+const EASE = 0.055;       // per-cell opacity easing (slow = silky)
 
-interface Cell { x: number; y: number; on: number; flick: number; }
+interface Cell {
+  x: number; y: number;
+  nx: number; ny: number;   // normalised, precomputed
+  dither: number;           // fixed threshold offset → stair-stepped edges
+  clear: number;            // centre-clearing mask, precomputed
+  a: number;                // current eased alpha
+}
 
 export default function Background() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -25,7 +45,8 @@ export default function Background() {
 
     let cells: Cell[] = [];
     let W = 0, H = 0;
-    const pointer = { x: -9999, y: -9999, on: 0, active: false };
+    let grad: CanvasGradient | null = null;
+    const ptr = { x: -9999, y: -9999, on: 0, active: false };
 
     const build = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -33,125 +54,122 @@ export default function Background() {
       canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // one gradient for the whole field, built once per resize
+      grad = ctx.createLinearGradient(-W * 0.1, H * 0.9, W * 1.05, H * 0.05);
+      grad.addColorStop(0, '#ff9a8b');
+      grad.addColorStop(0.42, '#ff6a88');
+      grad.addColorStop(0.76, '#c99bea');
+      grad.addColorStop(1, '#a8b2ff');
+
       const cols = Math.ceil(W / CELL) + 2;
       const rows = Math.ceil(H / CELL) + 2;
       cells = [];
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const s = Math.sin(c * 91.7 + r * 47.3) * 43758.5453;
-          cells.push({ x: c * CELL - CELL, y: r * CELL - CELL, on: 0, flick: s - Math.floor(s) });
+          const x = c * CELL - CELL, y = r * CELL - CELL;
+          const nx = x / W, ny = y / H;
+          // deterministic per-cell dither, stable across frames
+          const s = Math.sin(c * 127.1 + r * 311.7) * 43758.5453;
+          // the content column runs the full height, so clear a *column*, not
+          // an ellipse — otherwise texture creeps in above and below the cards
+          const off = Math.abs(nx - 0.5);
+          const clear = Math.min(1, Math.max(0, (off - 0.30) / 0.13));
+          cells.push({ x, y, nx, ny, dither: (s - Math.floor(s)) - 0.5, clear, a: 0 });
         }
       }
     };
 
-    // Field: > gate is inside the mass. Quantising to the grid gives the
-    // stair-step edges; the sine layers make it breathe and re-form.
-    const field = (x: number, y: number, t: number) => {
-      const nx = x / Math.max(W, 1), ny = y / Math.max(H, 1);
-      const body =
-        0.50 +
-        0.22 * Math.sin(nx * 2.9 + t * 0.048) +
-        0.17 * Math.sin(ny * 4.1 - t * 0.037) +
-        0.13 * Math.sin((nx + ny) * 5.0 + t * 0.029) +
-        0.10 * Math.sin((nx * 2.4 - ny * 3.1) + t * 0.062);
-      // the mass sweeps low-left → high-right like the reference
-      const band = 1 - Math.abs((ny - 0.52) + (nx - 0.5) * 0.30) * 1.9;
-      // …and is carved away through the middle so the content column stays
-      // clean. The mass frames the UI instead of sitting under it.
-      const dx = (nx - 0.5) * 1.0, dy = (ny - 0.5) * 1.45;
-      const clear = Math.min(1, Math.max(0, (Math.hypot(dx, dy) - 0.30) / 0.14));
-      return body * Math.max(0, band) * clear;
-    };
-
-    let raf = 0, last = 0;
+    let raf = 0;
     const t0 = performance.now();
+    const levelAlpha: number[] = [];
+    for (let i = 0; i <= LEVELS; i++) levelAlpha.push((i / LEVELS) * MAX_ALPHA);
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      if (now - last < 45) return;
-      last = now;
-      const t = (now - t0) / 1000;
+      const t = reduced ? 12 : (now - t0) / 1000;   // frozen field when motion is reduced
       ctx.clearRect(0, 0, W, H);
+      if (!grad) return;
 
-      if (!pointer.active && pointer.on > 0) pointer.on = Math.max(0, pointer.on - 0.028);
+      if (!ptr.active && ptr.on > 0) ptr.on = Math.max(0, ptr.on - 0.02);
 
-      // build one path for the whole mass, then fill it once with the gradient
-      const mass = new Path2D();
-      const bloomPath = new Path2D();
-      let anyBloom = false;
+      // group cells by opacity level so the whole field is drawn in LEVELS fills
+      const paths: Path2D[] = [];
+      for (let i = 0; i < LEVELS; i++) paths.push(new Path2D());
+
+      const size = CELL + OVERLAP * 2;
 
       for (const c of cells) {
-        const v = field(c.x + CELL / 2, c.y + CELL / 2, t);
-        // fringe cells flicker slowly — the scattered blocks at the edges
-        const gate = 0.50 + (c.flick - 0.5) * 0.055 + Math.sin(t * 0.22 + c.flick * 31) * 0.018;
-        const want = v > gate ? 1 : 0;
-        c.on += (want - c.on) * (reduced ? 1 : 0.09);
-        if (c.on < 0.35) continue;
+        // very slow, large-wavelength field — one coherent drift, not lumps
+        const v =
+          0.50 +
+          0.26 * Math.sin(c.nx * 2.2 + t * 0.055) +
+          0.20 * Math.sin(c.ny * 3.0 - t * 0.038) +
+          0.15 * Math.sin((c.nx + c.ny * 0.6) * 3.6 + t * 0.026);
 
-        // grow by R so neighbours overlap and fuse into one silhouette
-        const grow = R * c.on;
-        if (hasRound) mass.roundRect(c.x - grow, c.y - grow, CELL + grow * 2, CELL + grow * 2, R * 1.9);
-        else mass.rect(c.x - grow, c.y - grow, CELL + grow * 2, CELL + grow * 2);
+        // diagonal band, then the centre clearing
+        const band = 1 - Math.abs((c.ny - 0.5) + (c.nx - 0.5) * 0.28) * 1.35;
+        let target = v * Math.max(0, band) * c.clear;
 
-        if (pointer.on > 0.01) {
-          const d = Math.hypot(c.x + CELL / 2 - pointer.x, c.y + CELL / 2 - pointer.y);
-          if (d < BLOOM) {
-            const g2 = grow + (1 - d / BLOOM) ** 2 * 5 * pointer.on;
-            anyBloom = true;
-            if (hasRound) bloomPath.roundRect(c.x - g2, c.y - g2, CELL + g2 * 2, CELL + g2 * 2, R * 1.9);
-            else bloomPath.rect(c.x - g2, c.y - g2, CELL + g2 * 2, CELL + g2 * 2);
-          }
+        // cursor: wide smooth boost feeding the same quantiser
+        if (ptr.on > 0.005) {
+          const d = Math.hypot(c.x + CELL / 2 - ptr.x, c.y + CELL / 2 - ptr.y);
+          if (d < BLOOM_R) target += (1 - d / BLOOM_R) ** 2 * 0.5 * ptr.on;
         }
+
+        // quantise with a fixed per-cell dither → stair-stepped pixel edges
+        const lvl = Math.round(
+          Math.max(0, Math.min(LEVELS, target * LEVELS + c.dither * 0.55)),
+        );
+        const want = levelAlpha[lvl];
+
+        // ease opacity only — geometry is constant, so nothing can pop
+        c.a += (want - c.a) * (reduced ? 0.5 : EASE);
+        if (c.a < 0.006) continue;
+
+        // bucket into the nearest draw level
+        let bucket = Math.round((c.a / MAX_ALPHA) * LEVELS) - 1;
+        if (bucket < 0) bucket = 0;
+        if (bucket >= LEVELS) bucket = LEVELS - 1;
+        const p = paths[bucket];
+        if (hasRound) p.roundRect(c.x - OVERLAP, c.y - OVERLAP, size, size, RADIUS);
+        else p.rect(c.x - OVERLAP, c.y - OVERLAP, size, size);
       }
 
-      // one saturated gradient across the whole mass, drifting slowly
-      const shift = Math.sin(t * 0.03) * 0.06;
-      const g = ctx.createLinearGradient(-W * 0.15, H * 0.85, W * 1.1, H * 0.1);
-      g.addColorStop(Math.max(0, shift), '#FF9A8B');
-      g.addColorStop(Math.min(0.5, Math.max(0.02, 0.40 + shift)), '#FF6A88');
-      g.addColorStop(Math.min(0.97, 0.78 + shift), '#C99BEA');
-      g.addColorStop(1, '#A8B2FF');
-
-      ctx.globalAlpha = reduced ? 0.30 : 0.44;
-      ctx.fillStyle = g;
-      ctx.fill(mass);
-      if (anyBloom) { ctx.globalAlpha = 0.34; ctx.fill(bloomPath); }
+      ctx.fillStyle = grad;
+      for (let i = 0; i < LEVELS; i++) {
+        ctx.globalAlpha = levelAlpha[i + 1];
+        ctx.fill(paths[i]);
+      }
       ctx.globalAlpha = 1;
     };
 
     const onMove = (e: PointerEvent) => {
-      pointer.x = e.clientX; pointer.y = e.clientY;
-      pointer.active = true;
-      pointer.on = Math.min(1, pointer.on + 0.22);
+      ptr.x = e.clientX; ptr.y = e.clientY;
+      ptr.active = true;
+      ptr.on = Math.min(1, ptr.on + 0.09);   // ramps in over ~0.2s, never snaps
     };
-    const onLeave = () => { pointer.active = false; };
+    const onLeave = () => { ptr.active = false; };
     const onResize = () => build();
     const onVis = () => {
       if (document.hidden) cancelAnimationFrame(raf);
-      else { last = 0; raf = requestAnimationFrame(frame); }
+      else raf = requestAnimationFrame(frame);
     };
 
     build();
     raf = requestAnimationFrame(frame);
     window.addEventListener('pointermove', onMove, { passive: true });
-    window.addEventListener('pointerdown', onMove, { passive: true });
     document.addEventListener('pointerleave', onLeave);
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVis);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerdown', onMove);
       document.removeEventListener('pointerleave', onLeave);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
 
-  return (
-    <>
-      <canvas ref={ref} className="bg-canvas" aria-hidden />
-      <div className="bg-edges" aria-hidden />
-    </>
-  );
+  return <canvas ref={ref} className="bg-canvas" aria-hidden />;
 }
