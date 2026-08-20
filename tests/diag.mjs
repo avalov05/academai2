@@ -1,0 +1,12 @@
+import pw from 'playwright';
+const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+const p = await (await b.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+const errs = [];
+p.on('pageerror', e => errs.push('PAGEERR: ' + String(e).slice(0, 300)));
+p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text().slice(0, 250)); });
+await p.goto('http://localhost:3777', { waitUntil: 'domcontentloaded' });
+await p.waitForTimeout(3500);
+console.log('topbar?', await p.locator('.topbar').count());
+console.log('body text:', (await p.textContent('body')).slice(0, 160).replace(/\s+/g,' '));
+console.log(errs.slice(0, 5).join('\n') || 'no errors');
+await b.close();
