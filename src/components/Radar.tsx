@@ -86,35 +86,36 @@ export default function Radar() {
       ctx.lineWidth = 1;
       for (const [f, label] of rings) {
         ctx.beginPath();
-        ctx.strokeStyle = f === 0.13 ? 'rgba(228,86,110,0.34)' : 'rgba(41,41,41,0.13)';
-        ctx.setLineDash(f === 0.965 ? [] : [2, 6]);
+        ctx.strokeStyle = f === 0.13 ? 'rgba(228,86,110,0.55)' : (f === 0.965 ? 'rgba(41,41,41,0.34)' : 'rgba(41,41,41,0.22)');
+        ctx.setLineDash(f === 0.965 ? [] : [3, 5]);
         ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.font = '500 9px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(41,41,41,0.34)';
+        ctx.font = '700 10px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(41,41,41,0.58)';
         ctx.textAlign = 'center';
         ctx.fillText(label, cx, cy - R * f - 5);
       }
       // sector separators + labels
       for (const [, s] of sectors) {
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(41,41,41,0.09)';
+        ctx.strokeStyle = 'rgba(41,41,41,0.18)';
         ctx.moveTo(cx + Math.cos(s.a0) * R * 0.13, cy + Math.sin(s.a0) * R * 0.13);
         ctx.lineTo(cx + Math.cos(s.a0) * R, cy + Math.sin(s.a0) * R);
         ctx.stroke();
         const mid = (s.a0 + s.a1) / 2;
         ctx.save();
-        ctx.font = '600 10px Inter, sans-serif';
+        ctx.font = '700 11.5px Inter, sans-serif';
         ctx.fillStyle = s.color;
-        ctx.globalAlpha = 0.85;
+        ctx.globalAlpha = 1;
         ctx.textAlign = 'center';
         const lx = cx + Math.cos(mid) * (R + 20), ly = cy + Math.sin(mid) * (R + 20);
         ctx.fillText(s.label, lx, ly + 3);
         ctx.restore();
       }
       // crosshair
-      ctx.strokeStyle = 'rgba(41,41,41,0.34)';
+      ctx.strokeStyle = 'rgba(41,41,41,0.55)';
+      ctx.lineWidth = 1.3;
       ctx.beginPath();
       ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
       ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7);
@@ -126,7 +127,7 @@ export default function Radar() {
       const grad = ctx.createConicGradient ? (() => {
         const g = ctx.createConicGradient(sw - 0.9, cx, cy);
         g.addColorStop(0, 'rgba(155,169,247,0)');
-        g.addColorStop(0.12, 'rgba(155,169,247,0.14)');
+        g.addColorStop(0.12, 'rgba(135,99,222,0.20)');
         g.addColorStop(0.125, 'rgba(155,169,247,0)');
         g.addColorStop(1, 'rgba(155,169,247,0)');
         return g;
@@ -139,7 +140,7 @@ export default function Radar() {
         ctx.fill();
       }
       const swGrad = ctx.createLinearGradient(cx, cy, cx + Math.cos(sw) * R, cy + Math.sin(sw) * R);
-      swGrad.addColorStop(0, 'rgba(41,41,41,0.30)');
+      swGrad.addColorStop(0, 'rgba(41,41,41,0.42)');
       swGrad.addColorStop(1, 'rgba(155,169,247,0)');
       ctx.strokeStyle = swGrad;
       ctx.lineWidth = 1.4;
@@ -166,14 +167,14 @@ export default function Radar() {
         const r = R * (overdue ? 0.05 + hash01(it.id) * 0.04 : rFrac(hours));
         const x = cx + Math.cos(angle) * r + jit;
         const y = cy + Math.sin(angle) * r + (overdue ? Math.cos(t / 47) * 2 : 0);
-        const size = 3.5 + itemImpact(it) * 9;
+        const size = 5 + itemImpact(it) * 9.5;
         const color = overdue ? OVERDUE : (classById.get(it.class_id ?? '')?.color ?? LIFE);
         blips.push({ it, x, y, px: x, py: y, size, color, overdue, angle, r });
 
         // inbound trajectory trail
         if (!overdue) {
           ctx.beginPath();
-          ctx.strokeStyle = color + '4D';
+          ctx.strokeStyle = color + '80';
           ctx.lineWidth = 1;
           ctx.setLineDash(it.ghost ? [2, 4] : []);
           const tr = r + 14 + itemImpact(it) * 10;
@@ -193,11 +194,12 @@ export default function Radar() {
         else if (it.type === 'quiz') { ctx.moveTo(0, -size); ctx.lineTo(size * 0.95, size * 0.75); ctx.lineTo(-size * 0.95, size * 0.75); ctx.closePath(); }
         else { ctx.arc(0, 0, size * 0.85, 0, Math.PI * 2); }
         if (it.ghost) {
-          ctx.strokeStyle = color + '99'; ctx.lineWidth = 1.3; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+          ctx.strokeStyle = color + 'CC'; ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
         } else {
           ctx.fillStyle = color;
           ctx.fill();
-          ctx.strokeStyle = 'rgba(250,249,246,0.95)'; ctx.lineWidth = 1.4; ctx.stroke();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.6; ctx.stroke();
+          ctx.strokeStyle = 'rgba(41,41,41,0.30)'; ctx.lineWidth = 0.75; ctx.stroke();
         }
         ctx.restore();
         // overdue alert rings
@@ -224,7 +226,7 @@ export default function Radar() {
       blipsRef.current = blips;
 
       // ── label declutter: greedy vertical push, per side ──
-      const ROW = 21;
+      const ROW = 24;
       for (const side of [true, false]) {
         const group = labels.filter(l => l.right === side).sort((a, b) => a.y - b.y);
         let lastY = -Infinity;
@@ -237,23 +239,23 @@ export default function Radar() {
           // leader line when the label had to move
           if (Math.abs(ly - l.y) > 3) {
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(41,41,41,0.22)';
+            ctx.strokeStyle = 'rgba(41,41,41,0.34)';
             ctx.lineWidth = 1;
             ctx.moveTo(l.x + (side ? l.size + 2 : -l.size - 2), l.y);
             ctx.lineTo(lx - (side ? 3 : -3), ly - 3);
             ctx.stroke();
           }
-          ctx.lineWidth = 3.2; ctx.lineJoin = 'round';
-          ctx.font = '600 9.5px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(242,241,237,0.94)';
+          ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
+          ctx.font = '700 10.5px Inter, sans-serif';
+          ctx.strokeStyle = 'rgba(255,255,255,0.96)';
           ctx.strokeText(l.title, lx, ly - 3);
           ctx.fillStyle = l.overdue ? OVERDUE : INK;
           ctx.fillText(l.title, lx, ly - 3);
-          ctx.font = '500 9px Inter, sans-serif';
-          ctx.strokeStyle = 'rgba(242,241,237,0.94)';
-          ctx.strokeText(l.delta, lx, ly + 8);
-          ctx.fillStyle = l.overdue ? 'rgba(228,86,110,0.85)' : 'rgba(41,41,41,0.55)';
-          ctx.fillText(l.delta, lx, ly + 8);
+          ctx.font = '600 9.5px Inter, sans-serif';
+          ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+          ctx.strokeText(l.delta, lx, ly + 9);
+          ctx.fillStyle = l.overdue ? '#c33d54' : 'rgba(41,41,41,0.68)';
+          ctx.fillText(l.delta, lx, ly + 9);
         }
       }
       ctx.lineWidth = 1;
@@ -262,9 +264,9 @@ export default function Radar() {
       ctx.textAlign = 'center';
       const overCount = blips.filter(b => b.overdue).length;
       if (overCount) {
-        ctx.font = '700 10px Inter, sans-serif';
-        ctx.lineWidth = 3; ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(242,241,237,0.94)';
+        ctx.font = '800 11px Inter, sans-serif';
+        ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.96)';
         ctx.strokeText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);
         ctx.fillStyle = OVERDUE;
         ctx.fillText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);

@@ -6,11 +6,11 @@
   --charcoal: #292929;
   --charcoal-2: #333333;
   --text: #292929;
-  --dim: #555555;
-  --faint: rgba(41, 41, 41, 0.40);
-  --line: rgba(41, 41, 41, 0.13);
-  --line-strong: rgba(41, 41, 41, 0.28);
-  --hair: rgba(41, 41, 41, 0.09);
+  --dim: #4a4a4a;
+  --faint: rgba(41, 41, 41, 0.48);
+  --line: rgba(41, 41, 41, 0.20);
+  --line-strong: rgba(41, 41, 41, 0.42);
+  --hair: rgba(41, 41, 41, 0.13);
 
   --danger: #e4566e;
   --warn: #e0894a;
@@ -37,7 +37,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-d);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -63,7 +63,7 @@ body {
 
 /* ── typography ── */
 .micro {
-  font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--dim);
 }
 .micro-b { color: var(--text); font-weight: 600; }
@@ -76,7 +76,7 @@ body {
 
 /* ── surfaces ── */
 .panel {
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.90);
   border: 1px solid var(--line);
   border-radius: var(--r);
   position: relative;
@@ -109,18 +109,18 @@ body {
 
 /* ── buttons: compact, small radius, never pill ── */
 .btn {
-  font-family: var(--font-d); font-size: 11.5px; font-weight: 500;
+  font-family: var(--font-d); font-size: 12px; font-weight: 600;
   letter-spacing: 0.01em; text-transform: none;
-  background: transparent; color: var(--text);
+  background: rgba(255,255,255,.9); color: var(--text);
   border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   padding: 7px 13px; cursor: pointer; position: relative;
   transition: transform .18s ease, background .18s ease, border-color .18s ease, color .18s ease;
 }
-.btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.7); border-color: var(--charcoal); }
+.btn:hover { transform: translateY(-1px); background: #fff; border-color: var(--charcoal); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .btn:active { transform: none; }
 .btn.primary { background: var(--charcoal); color: #f6f5f2; border-color: var(--charcoal); }
 .btn.primary:hover { background: #000; color: #fff; }
-.btn.danger { border-color: rgba(228,86,110,.45); color: var(--danger); }
+.btn.danger { border-color: rgba(228,86,110,.6); color: #c33d54; background: rgba(228,86,110,.06); }
 .btn.danger:hover { background: rgba(228,86,110,.08); border-color: var(--danger); color: var(--danger); }
 .btn.ghosty { border-style: dashed; color: var(--dim); }
 .btn:disabled { opacity: .38; cursor: default; transform: none; }
@@ -128,9 +128,9 @@ body {
 
 input[type='text'], input[type='password'], input[type='email'], input[type='number'],
 input[type='date'], input[type='time'], select, textarea {
-  font-family: var(--font-d); font-size: 12.5px; color: var(--text);
-  background: rgba(255,255,255,.72);
-  border: 1px solid var(--line); border-radius: var(--r-sm);
+  font-family: var(--font-d); font-size: 13px; color: var(--text);
+  background: #fff;
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   padding: 8px 10px; outline: none; width: 100%;
   transition: border-color .18s, background .18s;
 }
@@ -159,15 +159,15 @@ kbd {
 /* ── chips: miniature pill tags (the one place pills belong) ── */
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 10px; font-weight: 500; letter-spacing: 0.02em; text-transform: none;
-  border: 1px solid var(--line); border-radius: 999px;
-  background: rgba(255,255,255,.6);
-  padding: 2.5px 9px; color: var(--dim); white-space: nowrap;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: none;
+  border: 1px solid rgba(41,41,41,.26); border-radius: 999px;
+  background: rgba(255,255,255,.92);
+  padding: 3px 9px; color: #3a3a3a; white-space: nowrap;
 }
 .chip .dot { width: 6px; height: 6px; border-radius: 2px; display: inline-block; }
-.chip.hot { border-color: rgba(228,86,110,.42); color: var(--danger); background: rgba(228,86,110,.07); }
-.chip.warn { border-color: rgba(224,137,74,.42); color: var(--warn); background: rgba(224,137,74,.07); }
-.chip.ok { border-color: rgba(31,158,150,.4); color: var(--ok); background: rgba(31,158,150,.07); }
+.chip.hot { border-color: rgba(228,86,110,.7); color: #c33d54; background: rgba(228,86,110,.12); }
+.chip.warn { border-color: rgba(224,137,74,.7); color: #b96c28; background: rgba(224,137,74,.13); }
+.chip.ok { border-color: rgba(31,158,150,.62); color: #16786f; background: rgba(31,158,150,.12); }
 .chip.ghost { border-style: dashed; background: transparent; }
 
 /* ── intake verdicts ── */
@@ -178,15 +178,15 @@ kbd {
 /* ── tables ── */
 table.swiss { width: 100%; border-collapse: collapse; }
 table.swiss th {
-  font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--dim); text-align: left;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: #3a3a3a; text-align: left;
   border-bottom: 1px solid var(--line-strong); padding: 9px 12px;
   cursor: pointer; user-select: none; white-space: nowrap;
 }
 table.swiss td { border-bottom: 1px solid var(--hair); padding: 9px 12px; vertical-align: middle; }
 table.swiss tr.row { display: table-row; align-items: initial; gap: 0; }
 table.swiss tr.row { transition: background .14s; cursor: pointer; }
-table.swiss tr.row:hover { background: rgba(255,255,255,.72); }
+table.swiss tr.row:hover { background: rgba(155,169,247,.10); }
 table.swiss tr.row.sel { background: rgba(155,169,247,.14); box-shadow: inset 2px 0 0 var(--charcoal); }
 table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decoration-color: var(--faint); }
 
@@ -212,8 +212,8 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .topbar {
   display: flex; align-items: center;
   padding: 0 22px 0 0;
-  border-bottom: 1px solid var(--line);
-  background: rgba(242, 241, 237, 0.86);
+  border-bottom: 1px solid var(--line-strong);
+  background: rgba(246, 245, 242, 0.94);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   position: sticky; top: 0; z-index: 30;
 }
@@ -227,8 +227,8 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 }
 .nav { display: flex; }
 .nav button {
-  font-size: 11.5px; font-weight: 500; letter-spacing: 0.005em; text-transform: none;
-  background: none; border: none; color: var(--dim);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.005em; text-transform: none;
+  background: none; border: none; color: #4a4a4a;
   padding: 15px 15px; cursor: pointer; position: relative;
   transition: color .16s;
 }
@@ -245,7 +245,13 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding: 26px 34px 34px; }
 
 /* ── radar ── */
-.radar-wrap { position: relative; }
+.radar-wrap {
+  position: relative;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
 .blip-tip {
   position: fixed; z-index: 50; pointer-events: none;
   background: var(--paper); border: 1px solid var(--line-strong);
@@ -271,7 +277,7 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .modal { width: min(640px, 94vw); animation: bootIn .2s both; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.07); }
 
 /* ── bars ── */
-.bar { height: 4px; background: rgba(41,41,41,.08); border-radius: 2px; position: relative; overflow: hidden; }
+.bar { height: 5px; background: rgba(41,41,41,.12); border-radius: 2px; position: relative; overflow: hidden; }
 .bar > i { position: absolute; inset: 0 auto 0 0; display: block; border-radius: 2px; }
 
 .ring { position: relative; display: grid; place-items: center; }

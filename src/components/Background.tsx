@@ -102,7 +102,7 @@ export default function Background() {
         const strength = Math.min(1, (v - 0.54) / 0.30);
         const [r, g, b] = ramp(c.u + Math.sin(t * 0.05 + c.cy * 0.004) * 0.05);
         // quiet by default; the cursor is what makes the cloud show itself
-        const alpha = (0.05 + strength * 0.13) * (1 + c.bloom * 3.4);
+        const alpha = (0.045 + strength * 0.10) * (1 + c.bloom * 4.2);
         const grow = c.bloom * 4.5;
         const size = CELL - GAP + grow;
         const off = (CELL - size) / 2;
