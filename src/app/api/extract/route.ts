@@ -11,8 +11,9 @@ const DEMO = process.env.NEXT_PUBLIC_DEMO === '1';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const text: string = (body.text ?? '').slice(0, 60000);
+    const text: string = (body.text ?? '').slice(0, 80000);
     const images: Array<{ mime: string; data: string }> = (body.images ?? []).slice(0, 8);
+    const pdfs: Array<{ mime: string; data: string }> = (body.pdfs ?? []).slice(0, 4);
 
     if (DEMO) return NextResponse.json({ extraction: demoExtraction(), model: 'demo' });
 
@@ -40,6 +41,11 @@ export async function POST(req: NextRequest) {
     }, text);
 
     const parts: GeminiPart[] = [{ text: prompt }];
+    // PDFs are read natively by the model — scans included
+    for (const d of pdfs) {
+      if (d.mime !== 'application/pdf') continue;
+      parts.push({ inline_data: { mime_type: 'application/pdf', data: d.data } });
+    }
     for (const im of images) {
       if (!/^image\//.test(im.mime)) continue;
       parts.push({ inline_data: { mime_type: im.mime, data: im.data } });

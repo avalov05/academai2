@@ -7,47 +7,61 @@ import { fmtEt, etEndOfDay } from '@/lib/time';
 import { supaAccessToken } from '@/components/auth';
 import { IS_DEMO } from '@/lib/store';
 import { sfx } from '@/lib/sound';
+import { readDocument, buildDocText, ACCEPT, type DocResult } from '@/lib/docs';
 import type { Item } from '@/lib/types';
 
-interface Img { mime: string; data: string; preview: string; }
+interface Attachment extends DocResult { preview?: string; }
 
 export default function IntakeView() {
   const app = useApp();
   const { data, notify } = app;
   const [text, setText] = useState('');
-  const [images, setImages] = useState<Img[]>([]);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [reading, setReading] = useState(0);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<ReviewPayload | null>(null);
   const [modelUsed, setModelUsed] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    for (const f of files) {
-      if (!f.type.startsWith('image/')) continue;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const url = reader.result as string;
-        const b64 = url.split(',')[1];
-        setImages(im => [...im, { mime: f.type, data: b64, preview: url }]);
-      };
-      reader.readAsDataURL(f);
+  const addFiles = useCallback(async (incoming: FileList | File[]) => {
+    const list = [...incoming];
+    if (!list.length) return;
+    setReading(n => n + list.length);
+    for (const f of list) {
+      try {
+        const res = await readDocument(f);
+        const att: Attachment = res;
+        if (res.image) att.preview = `data:${res.image.mime};base64,${res.image.data}`;
+        setFiles(x => [...x, att]);
+      } finally {
+        setReading(n => Math.max(0, n - 1));
+      }
     }
   }, []);
 
   const onPaste = (e: React.ClipboardEvent) => {
-    const files = [...e.clipboardData.files];
-    if (files.length) { addFiles(files); e.preventDefault(); }
+    const dropped = [...e.clipboardData.files];
+    if (dropped.length) { addFiles(dropped); e.preventDefault(); }
   };
 
   const extract = async () => {
-    if (!text.trim() && images.length === 0) { notify('Paste something first — text, a syllabus, or screenshots', 'warn'); return; }
+    const usable = files.filter(f => !f.failed);
+    if (!text.trim() && usable.length === 0) {
+      notify('Paste something first — text, a syllabus PDF, a Word doc, or screenshots', 'warn'); return;
+    }
+    const { text: docText, truncated } = buildDocText(usable);
+    if (truncated.length) notify(`Very long document — ${truncated.join(', ')} was read up to the size limit`, 'warn');
     setBusy(true);
     sfx.tick();
     try {
       const res = await fetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-        body: JSON.stringify({ text, images: images.map(i => ({ mime: i.mime, data: i.data })) }),
+        body: JSON.stringify({
+          text: [text, docText].filter(Boolean).join('\n\n'),
+          images: usable.filter(f => f.image).map(f => f.image!),
+          pdfs: usable.filter(f => f.pdf).map(f => f.pdf!),
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -78,8 +92,9 @@ export default function IntakeView() {
       }
       // 2) source record
       const src = await app.insertSource({
-        class_id: review.detectedClassId, kind: images.length ? 'screenshot' : 'text',
-        raw_text: text.slice(0, 20000), image_count: images.length,
+        class_id: review.detectedClassId,
+        kind: files.some(f => f.pdf || (f.text && !f.image)) ? 'syllabus' : files.length ? 'screenshot' : 'text',
+        raw_text: text.slice(0, 20000), image_count: files.length,
         summary: `${review.cards.length} items · ${review.newClasses.length} classes · ${modelUsed}`,
       });
       // 3) items
@@ -113,7 +128,7 @@ export default function IntakeView() {
       if (hols.length) await app.insertHolidays(hols);
       sfx.boot();
       notify(`Committed: ${inserts.length} new · ${updates} updated · ${review.newClasses.filter(c => c.include).length} classes`, 'ok');
-      setReview(null); setText(''); setImages([]);
+      setReview(null); setText(''); setFiles([]);
       app.setView('RADAR');
     } catch (e) {
       notify(`Commit failed: ${(e as Error).message}`, 'danger');
@@ -126,40 +141,68 @@ export default function IntakeView() {
         <>
           <div className="micro">UNIVERSAL INTAKE — FEED ME ANYTHING</div>
           <h2 className="display" style={{ fontSize: 30, margin: '6px 0 14px' }}>
-            Syllabus · Screenshot · Email · <span className="iridescent-text">Announcement</span>
+            Syllabus PDF · Screenshot · Email · <span className="iridescent-text">Announcement</span>
           </h2>
           <div className="panel corner" style={{ padding: 16 }}
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
             <i className="c3" />
             <textarea
-              placeholder={'Paste syllabus text, a Moodle announcement, an email from your professor, or screenshots (Ctrl/Cmd+V right here)…\n\nEverything with a date comes out the other side. Nothing commits without your review.'}
+              placeholder={'Paste syllabus text, a Moodle announcement, or an email from your professor. Screenshots and files work too — Ctrl/Cmd+V them right here, or drag a PDF or Word doc onto this box.\n\nEverything with a date comes out the other side. Nothing commits without your review.'}
               value={text} onChange={e => setText(e.target.value)} onPaste={onPaste}
               style={{ minHeight: 200, fontSize: 12.5 }} />
-            {images.length > 0 && (
-              <div className="row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-                {images.map((im, i) => (
-                  <div key={i} style={{ position: 'relative' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={im.preview} alt="pasted" style={{ height: 74, border: '1px solid var(--line)', borderRadius: 8, display: 'block' }} />
-                    <button onClick={() => setImages(x => x.filter((_, j) => j !== i))}
-                      style={{ position: 'absolute', top: -6, right: -6, background: 'var(--danger)', color: '#fff', border: 'none', width: 18, height: 18, borderRadius: '50%', fontSize: 9, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            {(files.length > 0 || reading > 0) && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {files.map((f, i) => (
+                  <div key={i} className="row" style={{
+                    padding: '9px 10px', border: '1px solid var(--line)', borderRadius: 10,
+                    alignItems: 'flex-start',
+                    background: f.failed ? 'var(--status-danger)' : 'var(--card-subtle)',
+                  }}>
+                    {f.preview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={f.preview} alt="" style={{ height: 34, width: 34, flex: '0 0 34px', objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                    ) : (
+                      // fixed-width column so every filename starts on the same line
+                      <span className="chip" style={{
+                        fontSize: 9.5, padding: '3px 0', flex: '0 0 46px',
+                        justifyContent: 'center', textAlign: 'center', marginTop: 1,
+                      }}>
+                        {f.pdf ? 'PDF' : (f.name.split('.').pop() || 'DOC').toUpperCase()}
+                      </span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
+                      <div className="faint" style={{ fontSize: 10.5 }}>
+                        {(f.bytes / 1024).toFixed(0)} KB
+                        {f.text ? ` · ${f.text.length.toLocaleString()} characters read` : ''}
+                        {f.pdf ? ' · sent to the reader as-is' : ''}
+                        {f.image ? ' · image' : ''}
+                      </div>
+                      {f.note && (
+                        <div style={{ fontSize: 10.5, marginTop: 2, color: f.failed ? '#8c2f28' : 'var(--dim)' }}>{f.note}</div>
+                      )}
+                    </div>
+                    <button className="btn sm danger" onClick={() => setFiles(x => x.filter((_, j) => j !== i))}>✕</button>
                   </div>
                 ))}
+                {reading > 0 && <div className="faint" style={{ fontSize: 11.5 }}>Reading {reading} file{reading > 1 ? 's' : ''}…</div>}
               </div>
             )}
             <div className="row" style={{ marginTop: 12 }}>
-              <button className="btn" onClick={() => fileRef.current?.click()}>+ SCREENSHOTS</button>
-              <input ref={fileRef} type="file" accept="image/*" multiple hidden
-                onChange={e => e.target.files && addFiles(e.target.files)} />
-              <span className="mono faint" style={{ fontSize: 10 }}>{images.length ? `${images.length} image${images.length > 1 ? 's' : ''} attached` : 'or paste images directly'}</span>
-              <button className="btn primary right-align" onClick={extract} disabled={busy}>
-                {busy ? 'EXTRACTING…' : 'EXTRACT ⟶'}
+              <button className="btn" onClick={() => fileRef.current?.click()}>+ Add files</button>
+              <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden
+                onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+              <span className="faint" style={{ fontSize: 11 }}>
+                {files.length ? `${files.length} attached` : 'PDF · DOCX · PPTX · XLSX · images — or drag them in'}
+              </span>
+              <button className="btn primary right-align" onClick={extract} disabled={busy || reading > 0}>
+                {busy ? 'Extracting…' : 'Extract ⟶'}
               </button>
             </div>
           </div>
           <div className="mono faint" style={{ fontSize: 10, marginTop: 10, lineHeight: 1.7 }}>
-            PIPELINE: GEMINI VISION EXTRACTION → DEDUPE VS {data.items.filter(i => !i.ghost).length} KNOWN OBJECTS → COVERAGE AUDIT → YOUR REVIEW → COMMIT.
+            PIPELINE: DOCUMENT + VISION READ → DEDUPE VS {data.items.filter(i => !i.ghost).length} KNOWN OBJECTS → COVERAGE AUDIT → YOUR REVIEW → COMMIT.
             {IS_DEMO && ' (DEMO MODE: canned extraction, no API call.)'}
           </div>
         </>

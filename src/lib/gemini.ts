@@ -122,7 +122,9 @@ RULES — read carefully:
 9. detected_class_code: the known class this content most likely belongs to (match loosely: "orgo" → chemistry class). "" if unclear or multiple.
 10. Screenshots: read ALL text including tables, calendars, sidebars, Moodle/LMS interfaces. Moodle due dates often look like "Due: Friday, 30 August 2026, 11:59 PM".
 
-${pastedText ? `CONTENT (pasted text):\n${pastedText}` : 'CONTENT: see attached image(s).'}`;
+11. ATTACHMENTS: PDFs and images may be attached alongside the text. Read every page of every attachment — syllabi frequently put the schedule table on a later page than the policies. Text extracted from Word/PowerPoint/Excel files arrives inline below, each block headed by "--- FILE: <name> ---".
+
+${pastedText ? `CONTENT:\n${pastedText}` : 'CONTENT: see the attached document(s) / image(s).'}`;
 }
 
 export interface GeminiPart {

@@ -72,8 +72,9 @@ export default function FirstRun() {
 
       <Step n={3} title="FEED IT YOUR FIRST SYLLABUS" done={hasClasses}>
         <div className="dim" style={{ fontSize: 12.5, marginBottom: 12 }}>
-          Paste the whole syllabus — text or screenshots. It builds the class, its lecture/lab/recitation
-          schedule, the grading breakdown, and every deadline it can find. You review before anything commits.
+          Give it the whole syllabus — drop in the PDF or Word file, paste the text, or paste screenshots.
+          It builds the class, its lecture/lab/recitation schedule, the grading breakdown, and every deadline
+          it can find. You review before anything commits.
           Repeat for each class.
         </div>
         <button className="btn primary" onClick={() => app.setView('INTAKE')}>Open intake</button>
