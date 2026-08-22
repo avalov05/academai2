@@ -9,15 +9,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppContext';
 import type { Item } from '@/lib/types';
-import { itemImpact } from '@/lib/types';
+import { itemImpact, urgencyFromHours, inDangerZone, URGENCY, type Urgency } from '@/lib/types';
 import { isActive } from '@/lib/planner';
 import { humanDelta, fmtEt } from '@/lib/time';
 import { sfx } from '@/lib/sound';
 import { TYPE_GLYPH } from '@/lib/palette';
+import { IS_DEMO } from '@/lib/store';
 
 const LIFE = '#7C7C76';
 const INK = '#171717';
 const OVERDUE = '#E0555F';
+const DANGER = '#E08A3C';   // under 24h — the band where a miss stops being recoverable
 const PAPER = '#EFEFEA';
 const SWEEP = '155,169,247';        // periwinkle, rgb triplet
 const TRAIL = 1.05;                 // radians of tail behind the sweep line
@@ -56,6 +58,7 @@ function hash01(s: string): number {
 interface Blip {
   it: Item; x: number; y: number; size: number;
   color: string; overdue: boolean; angle: number; r: number; isTest: boolean;
+  urg: Urgency;
 }
 interface Box { x0: number; y0: number; x1: number; y1: number }
 const hits = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
@@ -176,24 +179,76 @@ export default function Radar() {
       ctx.fill();
 
       // ── 2. rings ──
+      // ── 1b. the danger zone: everything inside the 24H ring ──
+      // Under 24 hours a missed item is usually unrecoverable, so the band is
+      // drawn as territory, not as a line. It sits quiet when empty and lifts
+      // when something is actually in it.
+      const nowMs = now.getTime();
+      const inZone = active.filter(i => !i.ghost
+        && (new Date(i.due_at!).getTime() - nowMs) / 3600000 <= 24);
+      const overdueNow = inZone.filter(i => new Date(i.due_at!).getTime() <= nowMs);
+      const occupancy = Math.min(1, inZone.length / 4);
+      const breath = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t / 1500);
+      const zoneAlpha = 0.030 + occupancy * (0.055 + breath * 0.035);
+
+      const zone = ctx.createRadialGradient(cx, cy, R * 0.04, cx, cy, R * 0.34);
+      zone.addColorStop(0, `rgba(224,85,95,${(zoneAlpha * 1.5).toFixed(3)})`);
+      zone.addColorStop(0.55, `rgba(224,110,80,${zoneAlpha.toFixed(3)})`);
+      zone.addColorStop(0.88, `rgba(224,138,60,${(zoneAlpha * 0.85).toFixed(3)})`);
+      zone.addColorStop(1, 'rgba(224,138,60,0)');
+      ctx.fillStyle = zone;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 0.34, 0, Math.PI * 2);
+      ctx.fill();
+
+      // a slow sweep of light around the band's edge while it is occupied —
+      // motion is the thing peripheral vision actually catches
+      if (inZone.length && !reduced) {
+        const a = (t / 2600) % (Math.PI * 2);
+        const edge = ctx.createConicGradient(a, cx, cy);
+        edge.addColorStop(0, `rgba(224,85,95,${(0.30 + occupancy * 0.3).toFixed(2)})`);
+        edge.addColorStop(0.14, 'rgba(224,138,60,0.05)');
+        edge.addColorStop(1, 'rgba(224,138,60,0)');
+        ctx.strokeStyle = edge;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * 0.34, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      let zoneLabel: { text: string; y: number } | null = null;
       const rings: Array<[number, string]> = [[0.13, 'NOW'], [0.34, '24H'], [0.52, '3D'], [0.70, '1W'], [0.85, '2W'], [0.965, '3W+']];
       ctx.lineWidth = 1.2;
       for (const [f, label] of rings) {
+        const isZoneEdge = f === 0.34;
         ctx.beginPath();
-        ctx.strokeStyle = f === 0.13 ? 'rgba(224,85,95,0.62)' : (f === 0.965 ? 'rgba(23,23,23,0.40)' : 'rgba(23,23,23,0.20)');
-        ctx.setLineDash(f === 0.965 ? [] : [3, 5]);
+        ctx.strokeStyle = f === 0.13 ? 'rgba(224,85,95,0.62)'
+          : isZoneEdge ? `rgba(224,110,80,${inZone.length ? 0.78 : 0.42})`
+          : (f === 0.965 ? 'rgba(23,23,23,0.40)' : 'rgba(23,23,23,0.20)');
+        ctx.lineWidth = isZoneEdge ? 1.6 : 1.2;
+        ctx.setLineDash(f === 0.965 ? [] : isZoneEdge ? [6, 4] : [3, 5]);
+        // marching dashes: the boundary itself is moving, so the zone reads as
+        // live rather than as another grid line
+        ctx.lineDashOffset = isZoneEdge && !reduced ? -(t / 90) % 10 : 0;
         ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.font = '700 10px Inter, sans-serif';
+        ctx.lineDashOffset = 0;
+        const hotEdge = isZoneEdge && inZone.length > 0;
+        const text = hotEdge ? '24H — DANGER ZONE' : label;
+        ctx.font = hotEdge ? '800 10.5px Inter, sans-serif' : '700 10px Inter, sans-serif';
         ctx.textAlign = 'center';
+        const halfW = ctx.measureText(text).width / 2 + 6;
+        taken.push({ x0: cx - halfW, y0: cy - R * f - 15, x1: cx + halfW, y1: cy - R * f + 1 });
+        // the zone label is painted after the blips — a blip parked on the ring
+        // must not be allowed to sit on top of the words "DANGER ZONE"
+        if (hotEdge) { zoneLabel = { text, y: cy - R * f - 5 }; continue; }
         ctx.lineWidth = 3.4; ctx.lineJoin = 'round';
         ctx.strokeStyle = PAPER;
-        ctx.strokeText(label, cx, cy - R * f - 5);
+        ctx.strokeText(text, cx, cy - R * f - 5);
         ctx.fillStyle = '#8b8b83';
-        ctx.fillText(label, cx, cy - R * f - 5);
+        ctx.fillText(text, cx, cy - R * f - 5);
         ctx.lineWidth = 1.2;
-        taken.push({ x0: cx - 20, y0: cy - R * f - 15, x1: cx + 20, y1: cy - R * f + 1 });
       }
       // sector separators
       for (const [, s] of sectors) {
@@ -215,7 +270,7 @@ export default function Radar() {
       // the overdue counter is painted last but its space is claimed now, so a
       // label can never land on top of the one number that must stay readable
       const overCount = active.filter(i => !i.ghost && new Date(i.due_at!).getTime() <= now.getTime()).length;
-      if (overCount) taken.push({ x0: cx - 62, y0: cy + R * 0.13 + 3, x1: cx + 62, y1: cy + R * 0.13 + 20 });
+      if (overCount || inZone.length) taken.push({ x0: cx - 95, y0: cy + R * 0.13 + 3, x1: cx + 95, y1: cy + R * 0.13 + 34 });
 
       // ── 3. blips ──
       const blips: Blip[] = [];
@@ -226,15 +281,20 @@ export default function Radar() {
         const s = sectors.get(secId)!;
         const pad = (s.a1 - s.a0) * 0.14;
         const angle = s.a0 + pad + hash01(it.id) * (s.a1 - s.a0 - pad * 2);
-        const jit = overdue ? (Math.sin(t / 60 + hash01(it.id) * 99) * 2.5) : 0;
+        // Position is a pure function of the item and the clock — never of the
+        // frame. Overdue blips used to be nudged a few pixels per frame, which
+        // read as the blip *and its label* shaking, and made the label
+        // placement search re-solve every frame on top of that.
         const r = R * (overdue ? 0.05 + hash01(it.id) * 0.04 : rFrac(hours));
-        const x = cx + Math.cos(angle) * r + jit;
-        const y = cy + Math.sin(angle) * r + (overdue ? Math.cos(t / 47) * 2 : 0);
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        const urg: Urgency = it.ghost ? 'normal' : urgencyFromHours(hours);
         // a "test" is anything you sit for: an exam, or an in-class quiz
         const isTest = it.type === 'exam' || (it.type === 'quiz' && it.at_home === false);
         const size = (5 + itemImpact(it) * 9.5) * (isTest ? 1.5 : 1);
         const color = overdue ? OVERDUE : (classById.get(it.class_id ?? '')?.color ?? LIFE);
-        blips.push({ it, x, y, size, color, overdue, angle, r, isTest });
+        const alert = overdue ? OVERDUE : urg === 'critical' ? OVERDUE : DANGER;
+        blips.push({ it, x, y, size, color, overdue, angle, r, isTest, urg });
 
         // short inbound trail — a tick of heading, not a line across the scope
         if (!overdue) {
@@ -251,7 +311,7 @@ export default function Radar() {
         // shape by type
         ctx.save();
         ctx.translate(x, y);
-        const pulse = 1 + (overdue ? 0.22 * Math.sin(t / 130) : 0.05 * Math.sin(t / 460 + hash01(it.id) * 20));
+        const pulse = 1 + (overdue ? 0.10 * Math.sin(t / 520) : 0.05 * Math.sin(t / 460 + hash01(it.id) * 20));
         ctx.scale(pulse, pulse);
         ctx.beginPath();
         if (it.type === 'exam') { ctx.moveTo(0, -size); ctx.lineTo(size, 0); ctx.lineTo(0, size); ctx.lineTo(-size, 0); ctx.closePath(); }
@@ -301,13 +361,44 @@ export default function Radar() {
           ctx.stroke();
           ctx.restore();
         }
+        // ── under 24 hours: a ring that closes in on the blip ──
+        // Contraction, not vibration. It reads as something arriving, and the
+        // rate is the message: slower at 24h, twice as fast in the last hours.
+        if (!it.ghost && !overdue && inDangerZone(urg) && !reduced) {
+          const period = urg === 'critical' ? 1050 : 1900;
+          const rings = urg === 'critical' ? 2 : 1;
+          for (let n = 0; n < rings; n++) {
+            const ph = ((t / period) + n / rings) % 1;
+            const rad = size + 5 + (1 - ph) * 26;      // wide → tight
+            ctx.beginPath();
+            ctx.strokeStyle = alert;
+            ctx.globalAlpha = 0.55 * Math.sin(ph * Math.PI);   // fade in and out
+            ctx.lineWidth = 1.3 + ph * 1.1;
+            ctx.arc(x, y, rad, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        // ── overdue: a scorch mark and shockwaves, and it does not move ──
         if (overdue) {
-          const ph = (t / 1400) % 1;
+          const scorch = ctx.createRadialGradient(x, y, size * 0.5, x, y, size + 26);
+          scorch.addColorStop(0, 'rgba(224,85,95,0.26)');
+          scorch.addColorStop(1, 'rgba(224,85,95,0)');
+          ctx.fillStyle = scorch;
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(224,85,95,${0.5 * (1 - ph)})`;
-          ctx.lineWidth = 1.4;
-          ctx.arc(x, y, size + ph * 24, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.arc(x, y, size + 26, 0, Math.PI * 2);
+          ctx.fill();
+          if (!reduced) {
+            for (let n = 0; n < 2; n++) {
+              const ph = ((t / 1500) + n / 2) % 1;
+              ctx.beginPath();
+              ctx.strokeStyle = `rgba(224,85,95,${(0.55 * (1 - ph)).toFixed(3)})`;
+              ctx.lineWidth = 1.6;
+              ctx.arc(x, y, size + ph * 26, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
         }
         // the sweep just went past: a brief soft halo, so the scan reads as
         // actually scanning rather than as decoration
@@ -328,6 +419,12 @@ export default function Radar() {
         blips[blips.length - 1].size = size;
       }
       blipsRef.current = blips;
+      // demo builds only: lets the test suite assert that a blip's position is
+      // a function of the item and the clock, never of the frame
+      if (IS_DEMO) {
+        (window as unknown as { __blips?: unknown }).__blips =
+          blips.map(b => ({ id: b.it.id, title: b.it.title, x: b.x, y: b.y, urg: b.urg }));
+      }
 
       // ── 4. class identity on the rim: coloured arc + solid name plate ──
       // drawn before the blip labels so their boxes are reserved, and the
@@ -366,9 +463,10 @@ export default function Radar() {
           b,
           hours: (new Date(b.it.due_at!).getTime() - now.getTime()) / 3600000,
         }))
-        .filter(c => c.hours < 72 || c.b.isTest || c.b.overdue || hoverRef.current === c.b.it.id)
+        .filter(c => c.hours < 72 || c.b.isTest || inDangerZone(c.b.urg) || hoverRef.current === c.b.it.id)
         .sort((a, b) => {
-          const pa = (a.b.overdue ? 0 : a.b.isTest ? 1 : 2), pb = (b.b.overdue ? 0 : b.b.isTest ? 1 : 2);
+          const rank = (x: typeof a) => inDangerZone(x.b.urg) ? 0 : x.b.isTest ? 1 : 2;
+          const pa = rank(a), pb = rank(b);
           return pa !== pb ? pa - pb : a.hours - b.hours;
         })
         .slice(0, MAX_LABELS);
@@ -399,28 +497,40 @@ export default function Radar() {
         taken.push({ x0: placed.x0 - 3, y0: placed.y0 - 3, x1: placed.x1 + 3, y1: placed.y1 + 3 });
 
         // paper plate + a colour tab so the label reads as this blip's
+        const U = URGENCY[b.urg];
+        const hot = inDangerZone(b.urg);
         roundRect(ctx, placed.x0, placed.y0, w, h, 7);
-        ctx.fillStyle = 'rgba(239,239,234,0.94)';
+        ctx.fillStyle = hot ? '#FBEDEA' : 'rgba(239,239,234,0.94)';
         ctx.fill();
-        ctx.strokeStyle = b.overdue ? 'rgba(224,85,95,0.55)' : b.color + '59';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = hot ? U.line : b.color + '59';
+        ctx.lineWidth = hot ? 1.4 : 1;
         ctx.stroke();
         // the colour tab sits on the edge facing the blip it belongs to
         roundRect(ctx, leftOfBlip ? placed.x1 - 5.5 : placed.x0 + 3, placed.y0 + 5, 2.5, h - 10, 1.5);
-        ctx.fillStyle = b.overdue ? OVERDUE : b.color;
+        ctx.fillStyle = hot ? U.line : b.color;
         ctx.fill();
 
         ctx.textAlign = 'left';
         const tx = placed.x0 + (leftOfBlip ? 8 : 10);
         ctx.font = b.isTest ? '800 11.5px Inter, sans-serif' : '700 11px Inter, sans-serif';
-        ctx.fillStyle = b.overdue ? '#b8352c' : INK;
+        ctx.fillStyle = hot ? U.ink : INK;
         ctx.fillText(b.isTest ? `◆ ${title}` : title, tx, placed.y0 + 13);
-        ctx.font = '600 9.5px Inter, sans-serif';
-        ctx.fillStyle = b.overdue ? '#b8352c' : (lightness(b.color) > 0.6 ? '#6b6b64' : b.color);
-        ctx.fillText(delta, tx, placed.y0 + 23);
+        ctx.font = hot ? '800 9.5px Inter, sans-serif' : '600 9.5px Inter, sans-serif';
+        ctx.fillStyle = hot ? U.ink : (lightness(b.color) > 0.6 ? '#6b6b64' : b.color);
+        ctx.fillText(hot && b.urg !== 'overdue' ? `${delta} left` : delta, tx, placed.y0 + 23);
       }
 
       // ── 6. name plates last: a class name is never covered ──
+      if (zoneLabel) {
+        ctx.font = '800 10.5px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4; ctx.lineJoin = 'round';
+        ctx.strokeStyle = PAPER;
+        ctx.strokeText(zoneLabel.text, cx, zoneLabel.y);
+        ctx.fillStyle = '#A8241C';
+        ctx.fillText(zoneLabel.text, cx, zoneLabel.y);
+        ctx.lineWidth = 1;
+      }
       for (const p of plates) {
         roundRect(ctx, p.x, p.y, p.w, p.h, 10.5);
         ctx.fillStyle = p.color;
@@ -438,13 +548,26 @@ export default function Radar() {
 
       // ── 7. counters ──
       ctx.textAlign = 'center';
+      ctx.lineJoin = 'round';
       if (overCount) {
-        ctx.font = '800 11px Inter, sans-serif';
-        ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
+        ctx.font = '800 11.5px Inter, sans-serif';
+        ctx.lineWidth = 3.6;
         ctx.strokeStyle = PAPER;
         ctx.strokeText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);
         ctx.fillStyle = OVERDUE;
         ctx.fillText(`${overCount} OVERDUE`, cx, cy + R * 0.13 + 15);
+        ctx.lineWidth = 1;
+      }
+      const soonCount = inZone.length - overdueNow.length;
+      if (soonCount > 0) {
+        const y0 = cy + R * 0.13 + (overCount ? 29 : 15);
+        const msg = `${soonCount} INSIDE 24H`;
+        ctx.font = '800 11px Inter, sans-serif';
+        ctx.lineWidth = 3.6;
+        ctx.strokeStyle = PAPER;
+        ctx.strokeText(msg, cx, y0);
+        ctx.fillStyle = '#8C4A12';
+        ctx.fillText(msg, cx, y0);
         ctx.lineWidth = 1;
       }
       if (hidden > 0) {

@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { briefing } from '@/lib/planner';
 import { fmtEt, humanDelta, todayEt, daysBetween, utcToEtDate } from '@/lib/time';
 import { KIND_LABEL } from '@/lib/types';
+import { urgencyOf, inDangerZone, URGENCY } from '@/lib/types';
 import { TYPE_GLYPH } from '@/lib/palette';
 
 export default function TodayView() {
@@ -111,19 +112,26 @@ function RowItem({ it, cls, now, onOpen, onDone, danger, startMode }: {
   onOpen: () => void; onDone: () => void;
   danger?: boolean; startMode?: boolean;
 }) {
+  const urg = urgencyOf(it, now);
+  const hot = inDangerZone(urg);
+  const over = urg === 'overdue';
   return (
-    <div className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+    <div className={`row ${hot && !danger ? `zone-row${over ? ' overdue-row' : urg === 'critical' ? ' critical-row' : ''}` : ''}`}
+      style={{ padding: hot && !danger ? '7px 9px' : '7px 0', borderBottom: '1px solid var(--line)', borderRadius: hot && !danger ? 8 : 0 }}>
       <input type="checkbox" checked={false} onChange={onDone} title="Mark done" />
       <span className="chip" style={{ borderColor: (cls?.color ?? '#8A8A84') + '55' }}>
         <span className="dot" style={{ background: cls?.color ?? '#8A8A84' }} />{cls?.code ?? 'LIFE'}
       </span>
       <span className="mono faint" style={{ fontSize: 9 }}>{TYPE_GLYPH[it.type]}</span>
-      <button onClick={onOpen} style={{ background: 'none', border: 'none', color: danger ? '#FF8A9E' : 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', padding: 0, flex: 1 }} className={danger ? 'glitch-hover' : ''}>
+      <button onClick={onOpen} style={{ background: 'none', border: 'none', color: danger ? '#FF8A9E' : hot ? URGENCY[urg].ink : 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: hot ? 600 : 400, textAlign: 'left', padding: 0, flex: 1 }} className={danger ? 'glitch-hover' : ''}>
         {startMode ? <span className="warn mono" style={{ fontSize: 10 }}>START · </span> : null}{it.title}
       </button>
       {it.due_at && (
-        <span className="mono right-align" style={{ fontSize: 11, whiteSpace: 'nowrap', color: danger ? '#FF8A9E' : 'var(--dim)' }}>
-          {danger ? humanDelta(new Date(it.due_at).getTime() - now.getTime()) : fmtEt(new Date(it.due_at), it.all_day ? 'MMM d' : 'EEE HH:mm')}
+        <span className={`mono right-align ${hot && !danger ? `zone-delta${over ? ' over' : urg === 'critical' ? ' critical' : ''}` : ''}`}
+          style={{ fontSize: 11, whiteSpace: 'nowrap', color: danger ? '#FF8A9E' : hot ? undefined : 'var(--dim)' }}>
+          {danger || hot
+            ? `${humanDelta(new Date(it.due_at).getTime() - now.getTime())}${over ? '' : ' left'}`
+            : fmtEt(new Date(it.due_at), it.all_day ? 'MMM d' : 'EEE HH:mm')}
         </span>
       )}
     </div>

@@ -177,6 +177,28 @@ kbd {
 .chip.ok { border-color: #bcd8cb; color: #145240; background: var(--status-success); }
 .chip.ghost { border-style: dashed; background: transparent; }
 
+/* Under 24 hours. Its own colour, between "fine" and "already lost", and it
+   breathes so peripheral vision picks it up without it being a flashing thing. */
+.chip.danger-zone {
+  border-color: #e8bf95; color: #8C4A12; background: #fdf1e3;
+  font-weight: 600;
+  animation: zone-breathe 2.6s ease-in-out infinite;
+}
+@keyframes zone-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 138, 60, 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(224, 138, 60, .16); }
+}
+/* A row that is inside the danger band. */
+.zone-row { background: rgba(224,138,60,.075); box-shadow: inset 3px 0 0 #E08A3C; }
+.zone-row.critical-row { background: rgba(224,85,95,.075); box-shadow: inset 3px 0 0 #E0555F; }
+.zone-row.overdue-row { background: rgba(224,85,95,.10); box-shadow: inset 3px 0 0 #A8241C; }
+.zone-delta { font-weight: 700; color: #8C4A12; }
+.zone-delta.critical { color: #B8352C; }
+.zone-delta.over { color: #A8241C; }
+@media (prefers-reduced-motion: reduce) {
+  .chip.danger-zone { animation: none; }
+}
+
 /* ── intake verdicts ── */
 .verdict-NEW { border-left: 4px solid #7fb59b; }
 .verdict-UPDATE { border-left: 4px solid #d9bd6a; }
@@ -233,7 +255,7 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
   width: 13px; height: 13px; border-radius: 3px;
   background: linear-gradient(135deg, #ff9a8b 0%, #ff6a88 55%, #a8b2ff 100%);
 }
-.nav { display: flex; }
+.nav { display: flex; min-width: 0; }
 .nav button {
   font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none;
   background: none; border: none; color: var(--dim);
@@ -247,8 +269,23 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
   background: var(--charcoal);
 }
 .nav button .k { margin-left: 5px; opacity: .34; font-size: 9px; }
-.topbar .spacer { flex: 1; }
-.topbar .right { display: flex; align-items: center; gap: 9px; }
+.topbar .spacer { flex: 1; min-width: 0; }
+.topbar .right { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
+
+/* Laptop widths: the status pills are load-bearing, the nav padding is not.
+   Tighten the nav before anything is allowed to push the bar wider than the
+   window. */
+@media (max-width: 1420px) {
+  .nav button { padding: 15px 11px; }
+  .nav button.active::after { left: 11px; right: 11px; }
+  .topbar .right { gap: 7px; }
+  .topbar .right .chip { font-size: 10.5px; padding: 3px 9px; }
+}
+@media (max-width: 1180px) {
+  .nav button { padding: 15px 8px; font-size: 12px; }
+  .nav button.active::after { left: 8px; right: 8px; }
+  .nav button .k { display: none; }
+}
 
 .main { flex: 1; width: 100%; max-width: 1440px; margin: 0 auto; padding: 26px 34px 34px; }
 

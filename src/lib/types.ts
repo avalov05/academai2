@@ -145,6 +145,8 @@ export interface Settings {
   sound_on: boolean;
   free_min_weekday: number; // planning capacity
   free_min_weekend: number;
+  push_enabled?: boolean;
+  push_last_run_at?: string | null;
 }
 
 export interface AppData {
@@ -167,6 +169,49 @@ export interface Occurrence {
   end: Date;
   leaveBy: Date;
 }
+
+/**
+ * One urgency scale, used by the radar, the tables and the header so that
+ * "this is about to hurt you" looks the same everywhere.
+ *
+ * The thresholds are deliberately asymmetric: the gap between 72h and 24h is
+ * where planning still works, and everything under 24h is the band where a
+ * missed item is usually unrecoverable.
+ */
+export type Urgency = 'overdue' | 'critical' | 'danger' | 'soon' | 'normal';
+
+export const DANGER_HOURS = 24;
+export const CRITICAL_HOURS = 6;
+export const SOON_HOURS = 72;
+
+export function urgencyFromHours(hours: number): Urgency {
+  if (hours <= 0) return 'overdue';
+  if (hours <= CRITICAL_HOURS) return 'critical';
+  if (hours <= DANGER_HOURS) return 'danger';
+  if (hours <= SOON_HOURS) return 'soon';
+  return 'normal';
+}
+
+export function hoursUntil(due: string | null | undefined, now: Date): number {
+  if (!due) return Infinity;
+  return (new Date(due).getTime() - now.getTime()) / 3600000;
+}
+
+export function urgencyOf(it: Pick<Item, 'due_at' | 'ghost' | 'status'>, now: Date): Urgency {
+  if (it.ghost || it.status !== 'pending') return 'normal';
+  return urgencyFromHours(hoursUntil(it.due_at, now));
+}
+
+/** true for anything the radar draws inside the danger band */
+export const inDangerZone = (u: Urgency) => u === 'overdue' || u === 'critical' || u === 'danger';
+
+export const URGENCY: Record<Urgency, { ink: string; line: string; wash: string; label: string }> = {
+  overdue:  { ink: '#A8241C', line: '#E0555F', wash: 'rgba(224,85,95,0.16)',  label: 'OVERDUE' },
+  critical: { ink: '#B8352C', line: '#E0555F', wash: 'rgba(224,85,95,0.11)',  label: 'HOURS LEFT' },
+  danger:   { ink: '#8C4A12', line: '#E08A3C', wash: 'rgba(224,138,60,0.11)', label: 'UNDER 24H' },
+  soon:     { ink: '#63635f', line: '#c9c9c0', wash: 'transparent',           label: 'THIS WEEK' },
+  normal:   { ink: '#63635f', line: '#dedcd4', wash: 'transparent',           label: '' },
+};
 
 export const DEFAULT_EFFORT: Record<ItemType, number> = {
   assignment: 120, quiz: 45, exam: 0, project: 300, reading: 60,

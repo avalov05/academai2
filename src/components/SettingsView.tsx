@@ -6,6 +6,7 @@ import { MODEL_CHAIN } from '@/lib/gemini';
 import { IS_DEMO } from '@/lib/store';
 import { signOut } from './auth';
 import { meetingSummary } from '@/lib/ics';
+import PushPanel from './PushPanel';
 
 export default function SettingsView() {
   const app = useApp();
@@ -38,6 +39,8 @@ export default function SettingsView() {
           <span className="mono faint" style={{ fontSize: 10 }}>auto-falls back down the chain if a model 404s or rate-limits</span>
         </div>
       </section>
+
+      <PushPanel />
 
       <section className="panel corner" style={{ padding: 16, marginBottom: 14 }}>
         <i className="c3" />

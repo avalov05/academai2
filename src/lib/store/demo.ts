@@ -79,8 +79,13 @@ function seed(): AppData {
   ];
   const d = (offset: number, time?: string) =>
     time ? etToUtc(addDaysStr(today, offset), time).toISOString() : etEndOfDay(addDaysStr(today, offset)).toISOString();
+  // clock-relative, so the danger-zone states are the same whatever hour the
+  // demo is opened at
+  const inHours = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
   const items: Item[] = [
     mkItem({ class_id: ch.id, type: 'assignment', title: 'Problem Set 2', bucket: 'Problem Sets', due_at: d(-1, '23:59'), all_day: false, effort_min: 150, details: 'Ch. 3 stereochemistry' }),
+    mkItem({ class_id: mth.id, type: 'assignment', title: 'WebAssign 4.5 — Series', bucket: 'WebAssign', due_at: inHours(3.2), all_day: false, effort_min: 70, details: 'Ratio and root tests' }),
+    mkItem({ class_id: bio.id, type: 'assignment', title: 'Lab safety module', bucket: 'Homework', due_at: inHours(17), all_day: false, effort_min: 45, details: 'Must pass before Thursday lab' }),
     mkItem({ class_id: ch.id, type: 'assignment', title: 'Problem Set 3', bucket: 'Problem Sets', due_at: d(5, '23:59'), all_day: false, effort_min: 150, details: 'Ch. 4 alkenes' }),
     mkItem({ class_id: ch.id, type: 'quiz', title: 'Quiz 2 (in-class)', bucket: 'Quizzes', due_at: d(2, '09:35'), all_day: false, at_home: false, effort_min: 0 }),
     mkItem({ class_id: ch.id, type: 'exam', title: 'Midterm 1', bucket: 'Midterm 1', weight_pct: 15, due_at: d(12, '09:35'), all_day: false, at_home: false, details: 'Ch. 1–5', effort_min: 0 }),

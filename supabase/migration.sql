@@ -135,3 +135,36 @@ create index items_user_due on public.items (user_id, due_at);
 create index items_class on public.items (class_id);
 create index components_class on public.components (class_id);
 create index scores_class on public.scores (class_id);
+
+-- ── Push notifications (also available standalone as migration-push.sql) ──
+create table if not exists public.push_subscriptions (
+  endpoint        text primary key,
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  p256dh          text not null,
+  auth            text not null,
+  label           text not null default '',
+  fail_count      int  not null default 0,
+  last_success_at timestamptz,
+  created_at      timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user on public.push_subscriptions(user_id);
+
+create table if not exists public.push_log (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  dedupe_key text not null,
+  sent_at    timestamptz not null default now(),
+  primary key (user_id, dedupe_key)
+);
+create index if not exists push_log_sent_at on public.push_log(sent_at);
+
+alter table public.user_settings add column if not exists push_enabled boolean not null default true;
+alter table public.user_settings add column if not exists push_last_run_at timestamptz;
+
+alter table public.push_subscriptions enable row level security;
+alter table public.push_log           enable row level security;
+
+create policy "own subs select" on public.push_subscriptions for select using (auth.uid() = user_id);
+create policy "own subs insert" on public.push_subscriptions for insert with check (auth.uid() = user_id);
+create policy "own subs update" on public.push_subscriptions for update using (auth.uid() = user_id);
+create policy "own subs delete" on public.push_subscriptions for delete using (auth.uid() = user_id);
+create policy "own log select"  on public.push_log           for select using (auth.uid() = user_id);

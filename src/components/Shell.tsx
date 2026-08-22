@@ -40,6 +40,11 @@ export default function Shell() {
   const overdueCount = useMemo(() => data.items.filter(i => isOverdue(i, now)).length, [data.items, now]);
   const dueToday = useMemo(() => briefing(data, now).dueToday.length, [data, now]);
   const intg = useMemo(() => integrity(data, now), [data, now]);
+  const inZone = useMemo(() => data.items.filter(i =>
+    !i.ghost && i.status === 'pending' && i.due_at
+    && new Date(i.due_at).getTime() > now.getTime()
+    && (new Date(i.due_at).getTime() - now.getTime()) / 3600000 <= 24).length,
+  [data.items, now]);
   const ghostCount = data.items.filter(i => i.ghost && i.status === 'pending').length;
   const needsSetup = !data.semester || data.classes.length === 0;
 
@@ -83,6 +88,11 @@ export default function Shell() {
         <div className="spacer" />
         <div className="right">
           {overdueCount > 0 && <span className="chip hot">{overdueCount} OVERDUE</span>}
+          {inZone > 0 && (
+            <span className="chip danger-zone" title="due within 24 hours — the band where a miss stops being recoverable">
+              {inZone} IN 24H
+            </span>
+          )}
           <span className="chip">{dueToday} DUE TODAY</span>
           <span className="chip ok" title="on-time / missed / day streak">{intg.missed === 0 ? `0 MISSED · ${intg.streakDays}D` : `${intg.missed} MISSED`}</span>
           <button className="btn sm primary" onClick={() => app.setPanicOpen(true)} title="Panic — I have N minutes (P)">Panic</button>
