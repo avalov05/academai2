@@ -55,13 +55,44 @@ export interface ClassComponent {
   days: number[];         // 0=Sun..6=Sat (ET weekdays)
   start_time: string;     // "HH:MM" ET ('' if async)
   end_time: string;
-  interval: 1 | 2;        // weekly | biweekly
-  anchor_date: string;    // YYYY-MM-DD — a date in an "on" week (biweekly parity)
+  interval: number;       // 1 weekly, 2 every other week, 3/4 every Nth week
+  anchor_date: string;    // YYYY-MM-DD — a date in an "on" week (parity anchor)
   start_date: string;     // '' → semester start
   end_date: string;       // '' → semester end
   skip_dates: string[];   // YYYY-MM-DD cancellations
   extra_dates: string[];  // YYYY-MM-DD one-off additions
   leave_by_min: number;   // walk-time alarm lead, minutes
+}
+
+/**
+ * A component whose meetings are an explicit list rather than a pattern:
+ * `days` empty, every meeting in `extra_dates`. Labs and recitations are very
+ * often like this, and treating them as weekly is the single worst thing this
+ * app can do — it hides the weeks that actually matter.
+ */
+export function isDateList(c: ClassComponent): boolean {
+  return !c.is_async && c.days.length === 0 && c.extra_dates.length > 0;
+}
+
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EVERY: Record<number, string> = { 2: 'Every other', 3: 'Every 3rd', 4: 'Every 4th' };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "2026-09-16" → "Sep 16" — dates in a summary line should read, not decode. */
+const pretty = (d: string) => `${MON[Number(d.slice(5, 7)) - 1] ?? d.slice(5, 7)} ${Number(d.slice(8, 10))}`;
+
+/** Human sentence for a meeting pattern — used everywhere a pattern is shown. */
+export function describePattern(c: ClassComponent): string {
+  if (c.is_async) return 'Async — no meetings';
+  if (isDateList(c)) return `${c.extra_dates.length} listed dates${c.start_time ? ` · ${c.start_time}–${c.end_time}` : ''}`;
+  if (!c.days.length) return 'No days set';
+  const days = c.days.map(d => DAY_ABBR[d]).join('/');
+  const every = c.interval > 1 ? `${EVERY[c.interval] ?? `Every ${c.interval}th`} ` : '';
+  const time = c.start_time ? ` · ${c.start_time}–${c.end_time}` : '';
+  const win = c.start_date && c.end_date ? ` · ${pretty(c.start_date)}–${pretty(c.end_date)}`
+    : c.start_date ? ` · from ${pretty(c.start_date)}`
+    : c.end_date ? ` · until ${pretty(c.end_date)}` : '';
+  const skips = c.skip_dates.length ? ` · ${c.skip_dates.length} cancelled` : '';
+  return `${every}${days}${time}${win}${skips}`;
 }
 
 export interface Item {

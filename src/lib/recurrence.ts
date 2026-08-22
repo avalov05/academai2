@@ -25,10 +25,13 @@ export function expandComponent(
   const anchor = c.anchor_date || c.start_date || semester.start_date;
   const anchorWeekIndex = weekIndexOf(anchor);
 
+  // days empty + explicit dates = "meets only on these dates" (handled by
+  // outWithExtras below). Never fabricate a weekly pattern to fill that in.
+  const step = Math.max(1, Math.min(6, Math.round(c.interval || 1)));
   if (!c.is_async && c.days.length > 0) {
     for (const date of dateRange(from, to)) {
       if (!c.days.includes(etWeekday(date))) continue;
-      if (c.interval === 2 && (weekIndexOf(date) - anchorWeekIndex) % 2 !== 0) continue;
+      if (step > 1 && mod(weekIndexOf(date) - anchorWeekIndex, step) !== 0) continue;
       if (holidaySet.has(date) || skip.has(date)) continue;
       out.push(makeOcc(c, date));
     }
@@ -45,6 +48,7 @@ function outWithExtras(
     if (from && date < from) continue;
     if (to && date > to) continue;
     if (skip?.has(date)) continue;
+    if (holidaySet?.has(date)) continue;
     if (out.some(o => o.date === date)) continue;
     if (c.start_time && c.end_time) out.push(makeOcc(c, date));
   }
@@ -63,7 +67,11 @@ function makeOcc(c: ClassComponent, date: string): Occurrence {
   };
 }
 
-/** Monday-anchored absolute week index (for biweekly parity). */
+/** true modulo — JS % keeps the sign of the dividend, which breaks parity
+ * for any date before the anchor. */
+function mod(a: number, n: number): number { return ((a % n) + n) % n; }
+
+/** Monday-anchored absolute week index (for every-Nth-week parity). */
 function weekIndexOf(date: string): number {
   const wd = etWeekday(date);
   const mondayOffset = wd === 0 ? 6 : wd - 1;

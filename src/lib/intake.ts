@@ -13,7 +13,9 @@ export interface RawExtraction {
     components?: Array<{
       kind?: string; title?: string; location?: string; is_async?: boolean;
       days?: string[]; start_time?: string; end_time?: string; biweekly?: boolean;
-      first_date?: string; notes?: string;
+      every_n_weeks?: number; first_date?: string; meeting_dates?: string[];
+      skip_dates?: string[]; start_date?: string; end_date?: string;
+      meeting_count_stated?: number; notes?: string;
     }>;
     grading?: Array<{ name?: string; weight_pct?: number; drops?: number }>;
   }>;
@@ -21,7 +23,10 @@ export interface RawExtraction {
     class_code?: string; type?: string; title?: string; due_date?: string; due_time?: string;
     at_home?: boolean; bucket?: string; weight_pct?: number; effort_min_guess?: number;
     details?: string; confidence?: string;
-    recurrence?: { freq?: string; day?: string; first_date?: string; until?: string };
+    recurrence?: {
+      freq?: string; day?: string; first_date?: string; until?: string;
+      dates?: string[]; skip_dates?: string[];
+    };
   }>;
   holidays?: Array<{ date?: string; name?: string }>;
   coverage_notes?: string[];
@@ -93,16 +98,25 @@ export function processExtraction(raw: RawExtraction, data: AppData): ReviewPayl
     const comps: NewClassDraft['components'] = [];
     for (const c of rc.components ?? []) {
       const kind = (VALID_KINDS.has(c.kind ?? '') ? c.kind : 'LEC') as ComponentKind;
-      const days = (c.days ?? []).map(d => DAY_NUM[d ?? '']).filter(n => n != null);
+      const listed = (c.meeting_dates ?? []).filter(isDate).sort();
+      // an explicit date list wins outright: it is what the syllabus said, and
+      // a weekday pattern alongside it would re-create the every-week bug
+      const days = listed.length ? [] : (c.days ?? []).map(d => DAY_NUM[d ?? '']).filter(n => n != null);
+      const every = Math.max(1, Math.min(6, Math.round(c.every_n_weeks ?? (c.biweekly ? 2 : 1))));
       comps.push({
         kind, title: c.title ?? '', location: c.location ?? '',
-        is_async: !!c.is_async || (days.length === 0 && !c.start_time),
+        is_async: !!c.is_async || (days.length === 0 && listed.length === 0 && !c.start_time),
         days,
         start_time: isTime(c.start_time) ? c.start_time : '',
         end_time: isTime(c.end_time) ? c.end_time : '',
-        interval: c.biweekly ? 2 : 1,
-        anchor_date: isDate(c.first_date) ? c.first_date : semStart,
-        start_date: '', end_date: '', skip_dates: [], extra_dates: [],
+        interval: listed.length ? 1 : every,
+        anchor_date: isDate(c.first_date) ? c.first_date : (listed[0] ?? semStart),
+        // a stated first meeting is also a start bound: "recitation begins the
+        // second week" must not put a recitation in the first week
+        start_date: isDate(c.start_date) ? c.start_date : (isDate(c.first_date) ? c.first_date : ''),
+        end_date: isDate(c.end_date) ? c.end_date : '',
+        skip_dates: (c.skip_dates ?? []).filter(isDate).sort(),
+        extra_dates: listed,
         leave_by_min: 12,
       });
     }
@@ -135,14 +149,24 @@ export function processExtraction(raw: RawExtraction, data: AppData): ReviewPayl
     const classCode = cls?.code ?? (isNewClass ? (ri.class_code ?? '').trim() : (ri.class_code || 'LIFE'));
 
     const instances: Array<{ date: string; assumption?: string; suffix?: string }> = [];
-    if (ri.recurrence?.freq && ri.recurrence.day && DAY_NUM[ri.recurrence.day] != null) {
+    const listedDates = (ri.recurrence?.dates ?? []).filter(isDate).sort();
+    const recSkip = new Set((ri.recurrence?.skip_dates ?? []).filter(isDate));
+    if (listedDates.length) {
+      for (const d of listedDates) {
+        if (recSkip.has(d)) continue;
+        instances.push({ date: d, suffix: ` — ${d.slice(5).replace('-', '/')}`, assumption: 'date listed in the source' });
+      }
+    } else if (ri.recurrence?.freq && ri.recurrence.day && DAY_NUM[ri.recurrence.day] != null) {
       const wd = DAY_NUM[ri.recurrence.day];
       const first = isDate(ri.recurrence.first_date) ? ri.recurrence.first_date : nextWeekday(semStart, wd);
       const until = isDate(ri.recurrence.until) ? ri.recurrence.until : semEnd;
       const step = ri.recurrence.freq === 'BIWEEKLY' ? 14 : 7;
       let d = nextWeekday(first, wd);
-      while (d <= until) {
-        instances.push({ date: d, suffix: ` — ${d.slice(5).replace('-', '/')}`, assumption: `expanded from ${ri.recurrence.freq?.toLowerCase()} pattern` });
+      let guard = 0;
+      while (d <= until && guard++ < 60) {
+        if (!recSkip.has(d)) {
+          instances.push({ date: d, suffix: ` — ${d.slice(5).replace('-', '/')}`, assumption: `expanded from ${ri.recurrence.freq?.toLowerCase()} pattern` });
+        }
         d = addDaysStr(d, step);
       }
     } else if (isDate(ri.due_date)) {

@@ -64,9 +64,16 @@ function seed(): AppData {
   });
   const components: ClassComponent[] = [
     comp(ch.id, 'LEC', [1, 3, 5], '09:35', '10:25', 'Dabney 210'),
-    comp(ch.id, 'LAB', [2], '13:30', '16:15', 'Cox B12', { interval: 2, leave_by_min: 18 }),
+    // labs start in week 2 and run every other week — the pattern that used to
+    // get flattened into "every Tuesday"
+    comp(ch.id, 'LAB', [2], '13:30', '16:15', 'Cox B12', {
+      interval: 2, leave_by_min: 18, start_date: addDaysStr(semStart, 7),
+    }),
     comp(bio.id, 'LEC', [2, 4], '11:45', '13:00', 'Bostian 3712'),
-    comp(bio.id, 'REC', [5], '14:00', '14:50', 'Bostian 2722'),
+    // recitation meets only on the dates printed in the syllabus
+    comp(bio.id, 'REC', [], '14:00', '14:50', 'Bostian 2722', {
+      extra_dates: [3, 17, 31, 45, 59, 73].map(n => addDaysStr(today, n)),
+    }),
     comp(phi.id, 'LEC', [], '', '', '', { is_async: true }),
     comp(mth.id, 'LEC', [1, 3, 5], '13:55', '14:45', 'SAS 2203'),
   ];

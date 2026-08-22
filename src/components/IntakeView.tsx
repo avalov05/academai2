@@ -8,7 +8,9 @@ import { supaAccessToken } from '@/components/auth';
 import { IS_DEMO } from '@/lib/store';
 import { sfx } from '@/lib/sound';
 import { readDocument, buildDocText, ACCEPT, type DocResult } from '@/lib/docs';
-import type { Item } from '@/lib/types';
+import type { ClassComponent, Item } from '@/lib/types';
+import { describePattern, isDateList } from '@/lib/types';
+import { expandComponent } from '@/lib/recurrence';
 
 interface Attachment extends DocResult { preview?: string; }
 
@@ -17,6 +19,7 @@ export default function IntakeView() {
   const { data, notify } = app;
   const [text, setText] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
+  const [verify, setVerify] = useState(true);
   const [reading, setReading] = useState(0);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<ReviewPayload | null>(null);
@@ -61,11 +64,12 @@ export default function IntakeView() {
           text: [text, docText].filter(Boolean).join('\n\n'),
           images: usable.filter(f => f.image).map(f => f.image!),
           pdfs: usable.filter(f => f.pdf).map(f => f.pdf!),
+          verify,
         }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setModelUsed(body.model ?? '');
+      setModelUsed(`${body.model ?? ''}${body.passes === 2 ? ' · 2 passes' : body.auditFailed ? ' · 1 pass (re-read failed)' : ''}`);
       const payload = processExtraction(body.extraction as RawExtraction, data);
       setReview(payload);
       sfx.confirm();
@@ -196,6 +200,10 @@ export default function IntakeView() {
               <span className="faint" style={{ fontSize: 11 }}>
                 {files.length ? `${files.length} attached` : 'PDF · DOCX · PPTX · XLSX · images — or drag them in'}
               </span>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }} title="Reads the source a second time with its own first answer in front of it. Catches the deadlines a single pass misses. Costs one extra API call.">
+                <input type="checkbox" checked={verify} onChange={e => setVerify(e.target.checked)} />
+                <span className="micro" style={{ fontSize: 9.5 }}>DOUBLE-CHECK PASS</span>
+              </label>
               <button className="btn primary right-align" onClick={extract} disabled={busy || reading > 0}>
                 {busy ? 'Extracting…' : 'Extract ⟶'}
               </button>
@@ -281,11 +289,13 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
                 <span className="chip"><span className="dot" style={{ background: nc.color }} />{nc.code}</span>
                 <strong>{nc.name}</strong>
               </div>
-              <div className="mono dim" style={{ fontSize: 11, marginTop: 8 }}>
-                {nc.components.map((c, j) => (
-                  <div key={j}>· {c.kind} {c.is_async ? 'ASYNC' : `${c.days.map(dd => 'SMTWTFS'[dd]).join('')} ${c.start_time}–${c.end_time}${c.interval === 2 ? ' (biweekly)' : ''}`} {c.location && `@ ${c.location}`}</div>
-                ))}
-                {nc.grading.length > 0 && <div style={{ marginTop: 4 }}>GRADING: {nc.grading.map(g => `${g.name} ${g.weight_pct}%${g.drops ? ` (drop ${g.drops})` : ''}`).join(' · ')}</div>}
+              <div style={{ marginTop: 10 }}>
+                {nc.components.map((c, j) => <MeetingPreview key={j} comp={c} color={nc.color} />)}
+                {nc.grading.length > 0 && (
+                  <div className="mono dim" style={{ fontSize: 11, marginTop: 8 }}>
+                    GRADING: {nc.grading.map(g => `${g.name} ${g.weight_pct}%${g.drops ? ` (drop ${g.drops})` : ''}`).join(' · ')}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -351,4 +361,52 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
 async function authHeader(): Promise<Record<string, string>> {
   const token = await supaAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * The meeting schedule, shown before anything commits. This is the check the
+ * student actually needs: a wrong pattern is invisible in a summary line but
+ * obvious the moment you see the real dates listed out.
+ */
+function MeetingPreview({ comp, color }: { comp: Omit<ClassComponent, 'id' | 'class_id'>; color: string }) {
+  const { data } = useApp();
+  const dates = useMemo(() => {
+    if (!data.semester || comp.is_async) return [];
+    const full = { ...comp, id: 'preview', class_id: 'preview' } as ClassComponent;
+    return expandComponent(full, data.semester, data.holidays).map(o => o.date);
+  }, [comp, data.semester, data.holidays]);
+
+  const c = { ...comp, id: '', class_id: '' } as ClassComponent;
+  const listed = isDateList(c);
+  const weekly = !comp.is_async && !listed && comp.interval === 1 && comp.days.length > 0;
+
+  return (
+    <div style={{
+      border: '1px solid var(--line)', borderRadius: 10, padding: '9px 11px',
+      marginBottom: 6, background: 'var(--card-subtle)',
+    }}>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <span className="chip" style={{ fontSize: 9.5, padding: '3px 9px' }}>
+          <span className="dot" style={{ background: color }} />{comp.kind}
+        </span>
+        <strong style={{ fontSize: 12.5 }}>{describePattern(c)}</strong>
+        {comp.location && <span className="dim" style={{ fontSize: 11.5 }}>@ {comp.location}</span>}
+        <span className="right-align chip" style={{ fontSize: 9.5, padding: '3px 9px' }}>
+          {comp.is_async ? 'no meetings' : `${dates.length} meetings`}
+        </span>
+      </div>
+      {dates.length > 0 && (
+        <div className="mono faint" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.6 }}>
+          {dates.slice(0, 12).map(d => d.slice(5).replace('-', '/')).join('  ')}
+          {dates.length > 12 ? `  …+${dates.length - 12}` : ''}
+        </div>
+      )}
+      {weekly && (
+        <div style={{ fontSize: 10.5, marginTop: 5, color: 'var(--dim)' }}>
+          Read as <strong>every week</strong>. If this one actually meets every other week or only on
+          certain dates, fix it in CLASSES after committing — that takes ten seconds and saves a semester.
+        </div>
+      )}
+    </div>
+  );
 }

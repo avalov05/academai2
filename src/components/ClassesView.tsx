@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from './AppContext';
 import type { ClassComponent, ComponentKind, Klass } from '@/lib/types';
-import { COMPONENT_KINDS, KIND_LABEL } from '@/lib/types';
+import { COMPONENT_KINDS, KIND_LABEL, describePattern, isDateList } from '@/lib/types';
 import { nextColor } from '@/lib/palette';
 import { expandComponent } from '@/lib/recurrence';
 import { todayEt, addDaysStr, etEndOfDay, fmtEt } from '@/lib/time';
@@ -99,9 +99,15 @@ function ClassCard({ k, editingComp, setEditingComp }: {
     if (!data.semester) return new Map<string, string>();
     const m = new Map<string, string>();
     for (const c of comps) {
-      const occ = expandComponent(c, data.semester, data.holidays, todayEt(), addDaysStr(todayEt(), 21))[0];
+      const occ = expandComponent(c, data.semester, data.holidays, todayEt(), addDaysStr(todayEt(), 28))[0];
       if (occ) m.set(c.id, occ.date);
     }
+    return m;
+  }, [comps, data.semester, data.holidays]);
+  const totals = useMemo(() => {
+    if (!data.semester) return new Map<string, number>();
+    const m = new Map<string, number>();
+    for (const c of comps) m.set(c.id, expandComponent(c, data.semester, data.holidays).length);
     return m;
   }, [comps, data.semester, data.holidays]);
 
@@ -127,11 +133,11 @@ function ClassCard({ k, editingComp, setEditingComp }: {
         <div key={c.id}>
           <div className="row" style={{ padding: '7px 0', borderTop: '1px solid var(--line)', marginTop: 8 }}>
             <span className="chip"><span className="dot" style={{ background: k.color }} />{c.kind}</span>
-            <span className="mono" style={{ fontSize: 11.5 }}>
-              {c.is_async ? 'ASYNC — no meetings' :
-                `${c.days.map(d => DAY_LETTERS[d]).join('')} ${c.start_time}–${c.end_time}${c.interval === 2 ? ' · BIWEEKLY' : ''}`}
-            </span>
+            <span style={{ fontSize: 12 }}>{describePattern(c)}</span>
             <span className="dim" style={{ fontSize: 11 }}>{c.location}</span>
+            {!c.is_async && (
+              <span className="chip" style={{ fontSize: 9.5, padding: '3px 8px' }}>{totals.get(c.id) ?? 0} meetings</span>
+            )}
             {!c.is_async && nextOccs.get(c.id) && <span className="mono faint" style={{ fontSize: 10 }}>NEXT {fmtEt(etEndOfDay(nextOccs.get(c.id)!), 'EEE MMM d')}</span>}
             <span className="right-align row">
               <button className="btn sm" onClick={() => setEditingComp(editingComp === c.id ? null : c.id)}>{editingComp === c.id ? 'CLOSE' : 'EDIT'}</button>
@@ -157,65 +163,143 @@ function ClassCard({ k, editingComp, setEditingComp }: {
 }
 
 function ComponentEditor({ comp, onSave }: { comp?: ClassComponent; onSave: (p: Partial<ClassComponent>) => void }) {
+  const { data, notify } = useApp();
   const [kind, setKind] = useState<ComponentKind>(comp?.kind ?? 'LEC');
   const [days, setDays] = useState<number[]>(comp?.days ?? []);
   const [st, setSt] = useState(comp?.start_time ?? '');
   const [en, setEn] = useState(comp?.end_time ?? '');
   const [loc, setLoc] = useState(comp?.location ?? '');
-  const [biweekly, setBiweekly] = useState(comp?.interval === 2);
-  const [anchor, setAnchor] = useState(comp?.anchor_date ?? '');
   const [asy, setAsy] = useState(comp?.is_async ?? false);
   const [leave, setLeave] = useState(comp?.leave_by_min ?? 12);
+  const [interval, setInterval] = useState(comp ? Math.max(1, comp.interval || 1) : 1);
+  const [anchor, setAnchor] = useState(comp?.anchor_date ?? '');
+  const [winStart, setWinStart] = useState(comp?.start_date ?? '');
+  const [winEnd, setWinEnd] = useState(comp?.end_date ?? '');
   const [skips, setSkips] = useState((comp?.skip_dates ?? []).join(', '));
+  const [listMode, setListMode] = useState(comp ? isDateList(comp) : false);
+  const [dateList, setDateList] = useState((comp?.extra_dates ?? []).join(', '));
+
+  const parseDates = (v: string) => v.split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)).sort();
+
+  const draft = useMemo<ClassComponent>(() => ({
+    id: comp?.id ?? 'preview', class_id: comp?.class_id ?? 'preview',
+    kind, title: comp?.title ?? '', location: loc, is_async: asy,
+    days: listMode ? [] : days,
+    start_time: asy ? '' : st, end_time: asy ? '' : en,
+    interval: listMode ? 1 : interval,
+    anchor_date: anchor || parseDates(dateList)[0] || data.semester?.start_date || todayEt(),
+    start_date: winStart, end_date: winEnd,
+    skip_dates: parseDates(skips),
+    extra_dates: listMode ? parseDates(dateList) : (comp?.extra_dates ?? []),
+    leave_by_min: leave,
+  }), [comp, kind, loc, asy, days, st, en, interval, anchor, winStart, winEnd, skips, listMode, dateList, leave, data.semester]);
+
+  const preview = useMemo(() => {
+    if (!data.semester || asy || !st || !en) return [];
+    return expandComponent(draft, data.semester, data.holidays).map(o => o.date);
+  }, [draft, data.semester, data.holidays, asy, st, en]);
+
+  const PATTERNS: Array<[number, string]> = [[1, 'Every week'], [2, 'Every other week'], [3, 'Every 3rd week'], [4, 'Every 4th week']];
+
   return (
-    <div className="panel-solid" style={{ padding: 12, margin: '6px 0' }}>
+    <div className="panel-solid" style={{ padding: 13, margin: '6px 0' }}>
       <div className="row" style={{ flexWrap: 'wrap' }}>
         <select value={kind} onChange={e => setKind(e.target.value as ComponentKind)} style={{ width: 130 }}>
           {COMPONENT_KINDS.map(x => <option key={x} value={x}>{KIND_LABEL[x]}</option>)}
         </select>
         <label className="row" style={{ cursor: 'pointer' }}>
           <input type="checkbox" checked={asy} onChange={e => setAsy(e.target.checked)} />
-          <span className="micro">ASYNC</span>
+          <span className="micro">ASYNC — NEVER MEETS</span>
         </label>
         {!asy && (
           <>
-            <span className="row" style={{ gap: 2 }}>
-              {DAY_LETTERS.map((l, i) => (
-                <button key={i} className="btn sm" style={{
-                  padding: '4px 7px',
-                  background: days.includes(i) ? 'var(--acc)' : 'transparent',
-                  color: days.includes(i) ? '#05070a' : 'var(--dim)',
-                }} onClick={() => setDays(d => d.includes(i) ? d.filter(x => x !== i) : [...d, i].sort())}>{l}</button>
-              ))}
-            </span>
-            <input type="time" value={st} onChange={e => setSt(e.target.value)} style={{ width: 110 }} />
+            <input type="time" value={st} onChange={e => setSt(e.target.value)} style={{ width: 132 }} />
             <span className="faint">–</span>
-            <input type="time" value={en} onChange={e => setEn(e.target.value)} style={{ width: 110 }} />
+            <input type="time" value={en} onChange={e => setEn(e.target.value)} style={{ width: 132 }} />
+            <input type="text" placeholder="Location" value={loc} onChange={e => setLoc(e.target.value)} style={{ width: 160 }} />
           </>
         )}
       </div>
+
       {!asy && (
-        <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
-          <input type="text" placeholder="Location" value={loc} onChange={e => setLoc(e.target.value)} style={{ width: 170 }} />
-          <label className="row" style={{ cursor: 'pointer' }}>
-            <input type="checkbox" checked={biweekly} onChange={e => setBiweekly(e.target.checked)} />
-            <span className="micro">EVERY OTHER WEEK</span>
-          </label>
-          {biweekly && (
-            <label className="row"><span className="micro">A DATE IN AN &quot;ON&quot; WEEK:</span>
-              <input type="date" value={anchor} onChange={e => setAnchor(e.target.value)} style={{ width: 150 }} /></label>
+        <>
+          <div className="row" style={{ marginTop: 10, gap: 6 }}>
+            <span className="micro">WHEN</span>
+            <button className={`btn sm ${!listMode ? 'primary' : ''}`} onClick={() => setListMode(false)}>A repeating pattern</button>
+            <button className={`btn sm ${listMode ? 'primary' : ''}`} onClick={() => setListMode(true)}>Only specific dates</button>
+          </div>
+
+          {!listMode ? (
+            <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+              <span className="row" style={{ gap: 2 }}>
+                {DAY_LETTERS.map((l, i) => (
+                  <button key={i} className="btn sm" style={{
+                    padding: '4px 9px', minWidth: 30,
+                    background: days.includes(i) ? 'var(--charcoal, #1C1C1C)' : 'transparent',
+                    color: days.includes(i) ? '#fff' : 'var(--dim)',
+                    borderColor: days.includes(i) ? 'var(--charcoal, #1C1C1C)' : 'var(--line)',
+                  }} onClick={() => setDays(d => d.includes(i) ? d.filter(x => x !== i) : [...d, i].sort())}>{l}</button>
+                ))}
+              </span>
+              <select value={interval} onChange={e => setInterval(Number(e.target.value))} style={{ width: 170 }}>
+                {PATTERNS.map(([v, lab]) => <option key={v} value={v}>{lab}</option>)}
+              </select>
+              {interval > 1 && (
+                <label className="row"><span className="micro">FIRST MEETING</span>
+                  <input type="date" value={anchor} onChange={e => setAnchor(e.target.value)} style={{ width: 150 }} /></label>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: 8 }}>
+              <input type="text" placeholder="2026-09-03, 2026-09-17, 2026-10-01 …" value={dateList}
+                onChange={e => setDateList(e.target.value)} style={{ width: '100%' }} />
+              <div className="faint" style={{ fontSize: 10.5, marginTop: 4 }}>
+                Paste the dates straight from the lab schedule. These are the only meetings — nothing is filled in around them.
+              </div>
+            </div>
           )}
-          <label className="row"><span className="micro">LEAVE-BY LEAD (MIN)</span>
-            <input type="number" value={leave} onChange={e => setLeave(Number(e.target.value) || 10)} style={{ width: 70 }} /></label>
-        </div>
+
+          <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+            <label className="row"><span className="micro">STARTS</span>
+              <input type="date" value={winStart} onChange={e => setWinStart(e.target.value)} style={{ width: 148 }} /></label>
+            <label className="row"><span className="micro">ENDS</span>
+              <input type="date" value={winEnd} onChange={e => setWinEnd(e.target.value)} style={{ width: 148 }} /></label>
+            <label className="row"><span className="micro">LEAVE-BY LEAD (MIN)</span>
+              <input type="number" value={leave} onChange={e => setLeave(Number(e.target.value) || 10)} style={{ width: 70 }} /></label>
+          </div>
+
+          <input type="text" placeholder="Cancelled dates (YYYY-MM-DD, comma separated)" value={skips}
+            onChange={e => setSkips(e.target.value)} style={{ width: '100%', marginTop: 8 }} />
+
+          <div style={{
+            marginTop: 10, padding: '9px 11px', borderRadius: 10,
+            border: '1px solid var(--line)', background: 'var(--card-subtle)',
+          }}>
+            <div className="row">
+              <span className="micro">THIS IS WHAT WILL BE ON YOUR CALENDAR</span>
+              <span className="right-align chip" style={{ fontSize: 9.5, padding: '3px 9px' }}>{preview.length} meetings</span>
+            </div>
+            <div className="mono faint" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.7 }}>
+              {preview.length
+                ? preview.slice(0, 18).map(d => d.slice(5).replace('-', '/')).join('  ') + (preview.length > 18 ? `  …+${preview.length - 18}` : '')
+                : (!st || !en ? 'Set a start and end time to see the meetings.' : 'No meetings — check the days, the pattern, and the date window.')}
+            </div>
+          </div>
+        </>
       )}
-      <div className="row" style={{ marginTop: 8 }}>
-        <input type="text" placeholder="Cancelled dates (YYYY-MM-DD, comma separated)" value={skips} onChange={e => setSkips(e.target.value)} style={{ flex: 1 }} />
-        <button className="btn sm primary" onClick={() => onSave({
-          kind, days, start_time: asy ? '' : st, end_time: asy ? '' : en, location: loc,
-          interval: biweekly ? 2 : 1, anchor_date: anchor || undefined, is_async: asy, leave_by_min: leave,
-          skip_dates: skips.split(',').map(s => s.trim()).filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s)),
-        } as Partial<ClassComponent>)}>SAVE</button>
+
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn sm primary right-align" onClick={() => {
+          if (!asy && (!st || !en)) { notify('A meeting needs a start and end time', 'warn'); return; }
+          if (!asy && !listMode && days.length === 0) { notify('Pick at least one weekday, or switch to specific dates', 'warn'); return; }
+          if (!asy && listMode && parseDates(dateList).length === 0) { notify('Add at least one date in YYYY-MM-DD form', 'warn'); return; }
+          onSave({
+            kind, days: draft.days, start_time: draft.start_time, end_time: draft.end_time, location: loc,
+            interval: draft.interval, anchor_date: draft.anchor_date, is_async: asy, leave_by_min: leave,
+            start_date: winStart, end_date: winEnd,
+            skip_dates: draft.skip_dates, extra_dates: draft.extra_dates,
+          });
+        }}>SAVE</button>
       </div>
     </div>
   );

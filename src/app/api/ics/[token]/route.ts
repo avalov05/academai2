@@ -7,7 +7,7 @@ import type { AppData, Settings } from '@/lib/types';
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await ctx.params;
     if (!token || token.length < 24) return new NextResponse('not found', { status: 404 });
@@ -32,13 +32,17 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ token: str
       items: itm.data ?? [], sources: [], scores: [],
       settings: settings as Settings,
     };
-    const ics = buildIcs(data);
+    const origin = req.nextUrl.origin;
+    const ics = buildIcs(data, { appUrl: origin });
+    // ?download=1 hands back a file to import — Google does not fire alarms on
+    // subscribed calendars, but it does on imported events
+    const download = req.nextUrl.searchParams.get('download') === '1';
     return new NextResponse(ics, {
       status: 200,
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="academai.ics"',
-        'Cache-Control': 'no-cache, max-age=300',
+        'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="academai.ics"`,
+        'Cache-Control': download ? 'no-store' : 'public, max-age=900',
       },
     });
   } catch (e) {

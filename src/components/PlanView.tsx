@@ -14,7 +14,9 @@ export default function PlanView() {
   const intg = useMemo(() => integrity(data, now), [data, now]);
   const classById = new Map(data.classes.map(c => [c.id, c]));
   const [sweepStep, setSweepStep] = useState(-1);
-  const maxRatio = Math.max(0.01, ...forecast.map(f => f.ratio));
+  // bars are scaled by hours, because hours are the number printed above them.
+  // ratio decides the colour — that is the "am I over capacity" signal.
+  const maxHours = Math.max(1, ...forecast.map(f => f.effortMin / 60));
 
   const undated = data.items.filter(i => i.status === 'pending' && !i.ghost && !i.due_at);
   const stale = data.items.filter(i => i.status === 'pending' && !i.ghost && i.due_at
@@ -37,24 +39,28 @@ export default function PlanView() {
 
       <div className="panel corner" style={{ padding: 18 }}>
         <i className="c3" />
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 150 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           {forecast.map(f => (
-            <div key={f.weekOf} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-              <span className="mono" style={{ fontSize: 9, color: f.hell ? 'var(--danger)' : 'var(--dim)' }}>
+            <div key={f.weekOf} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <span className="mono" style={{ fontSize: 9.5, fontWeight: 600, color: f.hell ? 'var(--danger)' : 'var(--dim)' }}>
                 {Math.round(f.effortMin / 60)}h
               </span>
-              <div title={`${f.dueCount} due · ${Math.round(f.effortMin / 60)}h work vs ~${Math.round(f.capacityMin / 60)}h free`}
-                className={f.hell ? 'alarm' : ''}
-                style={{
-                  width: '100%', maxWidth: 54,
-                  height: `${Math.max(4, (f.ratio / Math.max(maxRatio, 1)) * 100)}%`,
-                  background: f.hell
-                    ? 'linear-gradient(to top, #ff6a88 0%, #ffb3a6 100%)'
-                    : 'linear-gradient(to top, #a8b2ff 0%, #d9e3ff 100%)',
-                  border: '1px solid ' + (f.hell ? '#f2a2ab' : '#c3cdf5'), borderRadius: '8px 8px 3px 3px',
-                }} />
+              <div style={{ width: '100%', maxWidth: 54, height: 132, display: 'flex', alignItems: 'flex-end' }}>
+                <div title={`${f.dueCount} due · ${Math.round(f.effortMin / 60)}h work vs ~${Math.round(f.capacityMin / 60)}h free`}
+                  className={f.hell ? 'alarm' : ''}
+                  style={{
+                    width: '100%', flexShrink: 0,
+                    height: `${Math.max(3, (f.effortMin / 60 / maxHours) * 100)}%`,
+                    background: f.hell
+                      ? 'linear-gradient(to top, #ff6a88 0%, #ffb3a6 100%)'
+                      : 'linear-gradient(to top, #a8b2ff 0%, #d9e3ff 100%)',
+                    border: '1px solid ' + (f.hell ? '#f2a2ab' : '#c3cdf5'), borderRadius: '8px 8px 3px 3px',
+                  }} />
+              </div>
               <span className="mono" style={{ fontSize: 8.5, letterSpacing: '.08em', color: f.hell ? 'var(--danger)' : 'var(--faint)' }}>{f.label}</span>
-              {f.exams.length > 0 && <span className="mono danger" style={{ fontSize: 8 }}>{'◆'.repeat(f.exams.length)} EXAM</span>}
+              <span className="mono" style={{ fontSize: 8, color: 'var(--danger)', minHeight: 11, visibility: f.exams.length ? 'visible' : 'hidden' }}>
+                {'◆'.repeat(Math.max(1, f.exams.length))} EXAM
+              </span>
             </div>
           ))}
         </div>
