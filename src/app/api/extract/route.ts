@@ -1,7 +1,7 @@
 // ── POST /api/extract — server-side Gemini call ───────────────────────────
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { buildPrompt, buildAuditPrompt, callGemini, mergeExtractions, type GeminiPart } from '@/lib/gemini';
+import { buildPrompt, buildAuditPrompt, callGemini, mergeExtractions, GeminiError, type GeminiPart } from '@/lib/gemini';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -16,7 +16,12 @@ export async function POST(req: NextRequest) {
     const pdfs: Array<{ mime: string; data: string }> = (body.pdfs ?? []).slice(0, 4);
     const verify: boolean = body.verify !== false;   // second read unless turned off
 
-    if (DEMO) return NextResponse.json({ extraction: demoExtraction(), model: 'demo' });
+    if (DEMO) {
+      // demo builds can act out each failure so the error UI is testable
+      const sim = typeof body.simulate === 'string' ? body.simulate : '';
+      if (sim) return NextResponse.json(simulatedFailure(sim), { status: 502 });
+      return NextResponse.json({ extraction: demoExtraction(), model: 'demo' });
+    }
 
     // auth: forward the user's supabase JWT so RLS applies
     const auth = req.headers.get('authorization') ?? '';
@@ -32,7 +37,12 @@ export async function POST(req: NextRequest) {
       supa.from('classes').select('code,name'),
     ]);
     const key = settings?.gemini_key?.trim();
-    if (!key) return NextResponse.json({ error: 'No Gemini API key saved — add it in SETTINGS' }, { status: 400 });
+    if (!key) {
+      return NextResponse.json({
+        error: 'No Gemini API key saved',
+        hint: 'Open SETTINGS and paste a key from aistudio.google.com/apikey. It is free and starts with "AIza".',
+      }, { status: 400 });
+    }
 
     const todayEt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const prompt = buildPrompt({
@@ -52,25 +62,60 @@ export async function POST(req: NextRequest) {
       parts.push({ inline_data: { mime_type: im.mime, data: im.data } });
     }
 
-    const preferred = settings?.gemini_model || 'gemini-3.7-flash';
-    const { json, model } = await callGemini(key, preferred, parts);
+    const preferred = settings?.gemini_model || 'gemini-2.5-flash';
+    const { json, model, attempts } = await callGemini(key, preferred, parts);
 
     // Second read: same source, its own draft in front of it. Costs one extra
     // call and catches the omissions a single pass reliably makes.
-    if (!verify) return NextResponse.json({ extraction: json, model, passes: 1 });
+    if (!verify) return NextResponse.json({ extraction: json, model, passes: 1, attempts });
     try {
       const audit = await callGemini(key, model, [...parts, { text: buildAuditPrompt(json) }]);
       return NextResponse.json({
         extraction: mergeExtractions(json, audit.json),
-        model, passes: 2,
+        model, passes: 2, attempts,
       });
-    } catch {
+    } catch (e) {
       // the draft is still good — never fail the whole extraction over the audit
-      return NextResponse.json({ extraction: json, model, passes: 1, auditFailed: true });
+      return NextResponse.json({
+        extraction: json, model, passes: 1, attempts,
+        auditFailed: true, auditError: (e as Error).message.slice(0, 200),
+      });
     }
   } catch (e) {
+    if (e instanceof GeminiError) {
+      return NextResponse.json({
+        error: e.message, hint: e.hint, kind: e.kind, attempts: e.attempts,
+      }, { status: 502 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
+}
+
+function simulatedFailure(kind: string) {
+  const table: Record<string, { error: string; hint: string }> = {
+    key: {
+      error: 'API key not valid. Please pass a valid API key.',
+      hint: 'The Gemini API key is not valid. Get one at aistudio.google.com/apikey — it starts with "AIza" — and paste it into SETTINGS. Keys from anywhere else in Google will not work here.',
+    },
+    quota: {
+      error: 'You exceeded your current quota, please check your plan and billing details.',
+      hint: 'You have hit the free-tier limit. Wait a minute and try again, or pick another model in SETTINGS.',
+    },
+    'missing-model': {
+      error: 'None of these models are available to your key: gemini-2.5-flash, gemini-flash-latest',
+      hint: 'Open SETTINGS and press "Check key" — it will list the models this key can actually use, and let you pick one.',
+    },
+  };
+  const e = table[kind] ?? { error: 'Simulated failure', hint: 'Nothing is wrong — this was triggered on purpose.' };
+  return {
+    ...e,
+    kind,
+    attempts: [
+      { model: 'gemini-2.5-flash', status: kind === 'key' ? 400 : 429, kind, detail: e.error },
+      { model: 'gemini-flash-latest', status: 404, kind: 'missing-model', detail: 'models/gemini-flash-latest is not found for API version v1beta' },
+      { model: 'gemini-flash-latest', status: 404, kind: 'missing-model', detail: 'retried without the strict response format', schemaless: true },
+    ],
+  };
 }
 
 // Canned demo output so the flow is testable without a key

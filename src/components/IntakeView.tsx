@@ -8,11 +8,19 @@ import { supaAccessToken } from '@/components/auth';
 import { IS_DEMO } from '@/lib/store';
 import { sfx } from '@/lib/sound';
 import { readDocument, buildDocText, ACCEPT, type DocResult } from '@/lib/docs';
+import type { Attempt } from '@/lib/gemini';
 import type { ClassComponent, Item } from '@/lib/types';
 import { describePattern, isDateList } from '@/lib/types';
 import { expandComponent } from '@/lib/recurrence';
 
 interface Attachment extends DocResult { preview?: string; }
+
+interface ExtractFailure {
+  error: string;
+  hint?: string;
+  kind?: string;
+  attempts: Attempt[];
+}
 
 export default function IntakeView() {
   const app = useApp();
@@ -20,6 +28,7 @@ export default function IntakeView() {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [verify, setVerify] = useState(true);
+  const [failure, setFailure] = useState<ExtractFailure | null>(null);
   const [reading, setReading] = useState(0);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<ReviewPayload | null>(null);
@@ -55,6 +64,7 @@ export default function IntakeView() {
     const { text: docText, truncated } = buildDocText(usable);
     if (truncated.length) notify(`Very long document — ${truncated.join(', ')} was read up to the size limit`, 'warn');
     setBusy(true);
+    setFailure(null);
     sfx.tick();
     try {
       const res = await fetch('/api/extract', {
@@ -65,17 +75,33 @@ export default function IntakeView() {
           images: usable.filter(f => f.image).map(f => f.image!),
           pdfs: usable.filter(f => f.pdf).map(f => f.pdf!),
           verify,
+          // demo builds only: lets the suite act out each failure mode
+          ...(IS_DEMO ? { simulate: (window as unknown as { __simulate?: string }).__simulate } : {}),
         }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const body = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) {
+        setFailure({
+          error: String(body.error ?? `The server returned HTTP ${res.status}`),
+          hint: typeof body.hint === 'string' ? body.hint : undefined,
+          kind: typeof body.kind === 'string' ? body.kind : undefined,
+          attempts: Array.isArray(body.attempts) ? body.attempts as Attempt[] : [],
+        });
+        sfx.crash();
+        return;
+      }
+      setFailure(null);
       setModelUsed(`${body.model ?? ''}${body.passes === 2 ? ' · 2 passes' : body.auditFailed ? ' · 1 pass (re-read failed)' : ''}`);
       const payload = processExtraction(body.extraction as RawExtraction, data);
       setReview(payload);
       sfx.confirm();
       if (payload.cards.length === 0 && payload.newClasses.length === 0) notify('Nothing schedulable found in that content', 'warn');
     } catch (e) {
-      notify(`Extraction failed: ${(e as Error).message}`, 'danger');
+      setFailure({
+        error: (e as Error).message,
+        hint: 'The request never reached the server. Check your connection and try again.',
+        attempts: [],
+      });
     } finally { setBusy(false); }
   };
 
@@ -143,6 +169,7 @@ export default function IntakeView() {
     <div className="view-enter" style={{ maxWidth: 900, margin: '0 auto' }}>
       {!review && (
         <>
+          {failure && <FailurePanel f={failure} onDismiss={() => setFailure(null)} onSettings={() => app.setView('SETTINGS')} />}
           <div className="micro">UNIVERSAL INTAKE — FEED ME ANYTHING</div>
           <h2 className="display" style={{ fontSize: 30, margin: '6px 0 14px' }}>
             Syllabus PDF · Screenshot · Email · <span className="iridescent-text">Announcement</span>
@@ -405,6 +432,77 @@ function MeetingPreview({ comp, color }: { comp: Omit<ClassComponent, 'id' | 'cl
         <div style={{ fontSize: 10.5, marginTop: 5, color: 'var(--dim)' }}>
           Read as <strong>every week</strong>. If this one actually meets every other week or only on
           certain dates, fix it in CLASSES after committing — that takes ten seconds and saves a semester.
+        </div>
+      )}
+    </div>
+  );
+}
+
+const KIND_TITLE: Record<string, string> = {
+  key: 'That API key was rejected',
+  quota: 'Out of free quota for now',
+  'missing-model': 'No usable model on this key',
+  'bad-request': 'Google rejected the request',
+  blocked: 'The content was blocked',
+  network: 'Could not reach Google',
+  empty: 'The model returned nothing',
+};
+
+/**
+ * A failure you can act on. The previous version threw the message into a
+ * toast that vanished, and the server had already discarded Google's actual
+ * explanation — so "extraction failed" was all anyone ever saw.
+ */
+function FailurePanel({ f, onDismiss, onSettings }: {
+  f: ExtractFailure; onDismiss: () => void; onSettings: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="panel corner" style={{
+      padding: 16, marginBottom: 14,
+      borderColor: 'var(--danger, #E0555F)', background: 'rgba(224,85,95,.055)',
+    }}>
+      <i className="c3" />
+      <div className="row">
+        <span className="micro" style={{ color: '#A8241C' }}>
+          EXTRACTION FAILED — {KIND_TITLE[f.kind ?? ''] ?? 'SOMETHING WENT WRONG'}
+        </span>
+        <button className="btn sm right-align" onClick={onDismiss}>Dismiss</button>
+      </div>
+
+      <div style={{ fontSize: 13.5, marginTop: 9, color: 'var(--text)' }}>{f.error}</div>
+      {f.hint && <div style={{ fontSize: 12.5, marginTop: 7, color: 'var(--dim)', lineHeight: 1.6 }}>{f.hint}</div>}
+      {f.kind === 'key' && (
+        // "AIza" in a proportional face reads as "Alza" — capital I and
+        // lowercase L are the same glyph. Show it where they are not.
+        <div className="code" style={{ fontSize: 12, marginTop: 6, color: 'var(--text)' }}>
+          a real key looks like <strong>AIzaSyC…</strong> (capital A, capital I, lowercase z, lowercase a)
+        </div>
+      )}
+
+      <div className="row" style={{ marginTop: 11, flexWrap: 'wrap' }}>
+        <button className="btn sm primary" onClick={onSettings}>Open settings</button>
+        <a className="btn sm" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Get a free key</a>
+        {f.attempts.length > 0 && (
+          <button className="btn sm" onClick={() => setOpen(o => !o)}>
+            {open ? 'Hide' : `What was tried (${f.attempts.length})`}
+          </button>
+        )}
+      </div>
+
+      {open && f.attempts.length > 0 && (
+        <div style={{ marginTop: 10, border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
+          {f.attempts.map((a, i) => (
+            <div key={i} style={{ padding: '7px 11px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+              <div className="row" style={{ gap: 8 }}>
+                <span className="mono" style={{ fontSize: 11, minWidth: 150 }}>{a.model}</span>
+                <span className="chip" style={{ fontSize: 9, padding: '2px 7px' }}>{a.status || 'no response'}</span>
+                <span className="micro" style={{ fontSize: 9 }}>{a.kind}</span>
+                {a.schemaless && <span className="micro faint" style={{ fontSize: 9 }}>RETRY WITHOUT STRICT FORMAT</span>}
+              </div>
+              <div className="mono faint" style={{ fontSize: 10.5, marginTop: 3, lineHeight: 1.5 }}>{a.detail}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

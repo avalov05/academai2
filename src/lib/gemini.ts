@@ -1,9 +1,20 @@
 // ── Gemini extraction: prompt, strict schema, fallback chain ─────────────
 // Server-side only (called from /api/extract).
 
+// Ordered by "most likely to exist and be fast". Anything unknown 404s cheaply
+// and we move on, so speculative newer names cost nothing but are not first.
 export const MODEL_CHAIN = [
-  'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+  'gemini-2.5-pro',
+  'gemini-3-flash',
+  'gemini-3-pro',
 ];
+
+/** Models whose output ceiling is 8192, not 65536. */
+const SMALL_OUTPUT = /2\.0-flash|1\.5-flash|flash-8b|flash-lite/;
+const maxTokensFor = (model: string) => (SMALL_OUTPUT.test(model) ? 8192 : 16384);
 
 export interface ExtractContext {
   todayEt: string;                    // YYYY-MM-DD
@@ -228,42 +239,199 @@ export function mergeExtractions(draft: unknown, audit: unknown): unknown {
   };
 }
 
+export type FailureKind = 'key' | 'quota' | 'missing-model' | 'bad-request' | 'blocked' | 'network' | 'empty';
+
+export interface Attempt {
+  model: string;
+  status: number;
+  kind: FailureKind | 'ok';
+  detail: string;
+  schemaless?: boolean;
+}
+
+export class GeminiError extends Error {
+  kind: FailureKind;
+  attempts: Attempt[];
+  hint: string;
+  constructor(kind: FailureKind, message: string, hint: string, attempts: Attempt[]) {
+    super(message);
+    this.name = 'GeminiError';
+    this.kind = kind;
+    this.hint = hint;
+    this.attempts = attempts;
+  }
+}
+
+interface ApiError { error?: { code?: number; message?: string; status?: string } }
+
+/**
+ * Work out what actually went wrong. This matters more than it looks: the old
+ * version treated every 400 as "try the next model", so a bad API key burned
+ * through the whole chain and surfaced as a bare status code with Google's
+ * actual explanation thrown away.
+ */
+export function classifyFailure(status: number, bodyText: string): { kind: FailureKind; detail: string; hint: string } {
+  let detail = bodyText.slice(0, 600);
+  let apiStatus = '';
+  try {
+    const j = JSON.parse(bodyText) as ApiError;
+    if (j.error?.message) detail = j.error.message;
+    apiStatus = j.error?.status ?? '';
+  } catch { /* not JSON — keep the raw text */ }
+  const d = detail.toLowerCase();
+
+  if (status === 401 || status === 403 || apiStatus === 'PERMISSION_DENIED'
+    || d.includes('api key not valid') || d.includes('api_key_invalid') || d.includes('invalid api key')) {
+    return {
+      kind: 'key',
+      detail,
+      hint: 'The Gemini API key is not valid. Get one at aistudio.google.com/apikey — it starts with "AIza" — and paste it into SETTINGS. Keys from anywhere else in Google will not work here.',
+    };
+  }
+  if (status === 429 || apiStatus === 'RESOURCE_EXHAUSTED' || d.includes('quota')) {
+    return { kind: 'quota', detail, hint: 'The free tier limit for this model is used up. Wait a minute, or pick a different model in SETTINGS.' };
+  }
+  if (status === 404 || d.includes('not found') || d.includes('is not supported')
+    || d.includes('does not exist') || d.includes('not supported for generatecontent')) {
+    return { kind: 'missing-model', detail, hint: 'That model is not available to this key.' };
+  }
+  if (status === 400) {
+    return { kind: 'bad-request', detail, hint: 'Google rejected the request itself. Usually the response format the app asked for; it will retry without it.' };
+  }
+  return { kind: 'network', detail: detail || `HTTP ${status}`, hint: 'Google returned an unexpected error. Trying the next model.' };
+}
+
+function extractText(body: unknown): string {
+  const b = body as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
+    promptFeedback?: { blockReason?: string };
+  };
+  return b?.candidates?.[0]?.content?.parts?.map(p => p.text ?? '').join('') ?? '';
+}
+
+function parseLoose(text: string): unknown | null {
+  try { return JSON.parse(text); } catch { /* try harder */ }
+  // models sometimes wrap JSON in a code fence or add a sentence around it
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) { try { return JSON.parse(fenced[1]); } catch { /* keep going */ } }
+  const first = text.indexOf('{'), last = text.lastIndexOf('}');
+  if (first >= 0 && last > first) { try { return JSON.parse(text.slice(first, last + 1)); } catch { /* give up */ } }
+  return null;
+}
+
+const SHAPE_HINT = `\n\nReturn ONLY a JSON object, no prose and no code fence, with exactly these keys:
+{"detected_class_code":string,"classes":[{"code":string,"name":string,"components":[{"kind":"LEC"|"REC"|"LAB"|"SEM"|"STU"|"OTH","title":string,"location":string,"is_async":boolean,"days":["MO"...],"start_time":"HH:MM","end_time":"HH:MM","every_n_weeks":number,"first_date":"YYYY-MM-DD","meeting_dates":["YYYY-MM-DD"],"skip_dates":["YYYY-MM-DD"],"start_date":string,"end_date":string,"meeting_count_stated":number,"notes":string}],"grading":[{"name":string,"weight_pct":number,"drops":number}]}],"items":[{"class_code":string,"type":"assignment"|"quiz"|"exam"|"project"|"reading"|"task"|"social"|"admin","title":string,"due_date":"YYYY-MM-DD","due_time":"HH:MM","at_home":boolean,"bucket":string,"weight_pct":number,"effort_min_guess":number,"details":string,"recurrence":{"freq":"WEEKLY"|"BIWEEKLY","day":"MO","first_date":string,"until":string,"dates":["YYYY-MM-DD"],"skip_dates":["YYYY-MM-DD"]},"confidence":"high"|"medium"|"low"}],"holidays":[{"date":"YYYY-MM-DD","name":string}],"coverage_notes":[string]}`;
+
+async function oneCall(
+  apiKey: string, model: string, parts: GeminiPart[], useSchema: boolean,
+): Promise<{ ok: true; json: unknown } | { ok: false; status: number; body: string }> {
+  const sendParts = useSchema
+    ? parts
+    : parts.map((p, i) => (i === 0 && p.text ? { text: p.text + SHAPE_HINT } : p));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: sendParts }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+          ...(useSchema ? { responseSchema: RESPONSE_SCHEMA } : {}),
+          maxOutputTokens: maxTokensFor(model),
+        },
+      }),
+    },
+  );
+  if (!res.ok) return { ok: false, status: res.status, body: await res.text().catch(() => '') };
+  const body = await res.json().catch(() => null);
+  const text = extractText(body);
+  if (!text) {
+    const blocked = (body as { promptFeedback?: { blockReason?: string } })?.promptFeedback?.blockReason;
+    return { ok: false, status: 200, body: JSON.stringify({ error: { message: blocked ? `Blocked: ${blocked}` : 'The model returned nothing.' } }) };
+  }
+  const json = parseLoose(text);
+  if (json === null) {
+    return { ok: false, status: 200, body: JSON.stringify({ error: { message: `Could not parse the model's reply as JSON: ${text.slice(0, 200)}` } }) };
+  }
+  return { ok: true, json };
+}
+
 export async function callGemini(
   apiKey: string,
   preferredModel: string,
   parts: GeminiPart[],
-): Promise<{ json: unknown; model: string }> {
-  const chain = [preferredModel, ...MODEL_CHAIN.filter(m => m !== preferredModel)];
-  let lastErr = '';
+): Promise<{ json: unknown; model: string; attempts: Attempt[] }> {
+  const chain = [preferredModel, ...MODEL_CHAIN.filter(m => m !== preferredModel)].filter(Boolean);
+  const attempts: Attempt[] = [];
+  let worst: { kind: FailureKind; message: string; hint: string } | null = null;
+
   for (const model of chain) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA,
-          maxOutputTokens: 16384,
-        },
-      }),
-    });
-    if (res.status === 404 || res.status === 400) { lastErr = `${model}: ${res.status}`; continue; }
-    if (res.status === 429) { lastErr = `${model}: rate-limited`; continue; }
-    if (!res.ok) { lastErr = `${model}: ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300); continue; }
-    const body = await res.json();
-    const text = body?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
-    if (!text) { lastErr = `${model}: empty response`; continue; }
-    try {
-      return { json: JSON.parse(text), model };
-    } catch {
-      // try to salvage JSON inside
-      const m = text.match(/\{[\s\S]*\}/);
-      if (m) { try { return { json: JSON.parse(m[0]), model }; } catch { /* fall through */ } }
-      lastErr = `${model}: unparseable JSON`;
+    for (const useSchema of [true, false]) {
+      let r: Awaited<ReturnType<typeof oneCall>>;
+      try {
+        r = await oneCall(apiKey, model, parts, useSchema);
+      } catch (e) {
+        attempts.push({ model, status: 0, kind: 'network', detail: (e as Error).message, schemaless: !useSchema });
+        worst ??= { kind: 'network', message: (e as Error).message, hint: 'Could not reach Google at all.' };
+        break;
+      }
+      if (r.ok) {
+        attempts.push({ model, status: 200, kind: 'ok', detail: useSchema ? 'ok' : 'ok (without the strict response format)', schemaless: !useSchema });
+        return { json: r.json, model, attempts };
+      }
+      const c = classifyFailure(r.status, r.body);
+      attempts.push({ model, status: r.status, kind: c.kind, detail: c.detail, schemaless: !useSchema });
+
+      // A bad key is a bad key on every model — stop rather than making five
+      // more failing calls and reporting the last one.
+      if (c.kind === 'key') throw new GeminiError('key', c.detail, c.hint, attempts);
+      // The strict response format is the only thing worth retrying on the
+      // same model; everything else means move on.
+      if (c.kind !== 'bad-request') { worst ??= { kind: c.kind, message: c.detail, hint: c.hint }; break; }
+      if (!useSchema) { worst ??= { kind: c.kind, message: c.detail, hint: c.hint }; }
     }
   }
-  throw new Error(`All Gemini models failed. Last error: ${lastErr}`);
+
+  const allMissing = attempts.every(a => a.kind === 'missing-model');
+  const allQuota = attempts.some(a => a.kind === 'quota') && attempts.every(a => a.kind === 'quota' || a.kind === 'missing-model');
+  if (allMissing) {
+    throw new GeminiError('missing-model',
+      `None of these models are available to your key: ${chain.join(', ')}`,
+      'Open SETTINGS and press "Check key" — it will list the models this key can actually use, and let you pick one.',
+      attempts);
+  }
+  if (allQuota) {
+    throw new GeminiError('quota', worst?.message ?? 'Out of quota',
+      'You have hit the free-tier limit. Wait a minute and try again, or pick another model in SETTINGS.', attempts);
+  }
+  throw new GeminiError(worst?.kind ?? 'network',
+    worst?.message ?? 'Every model failed.',
+    worst?.hint ?? 'Open SETTINGS and press "Check key" to see what this key can do.',
+    attempts);
+}
+
+/** Ask Google what this key can actually use. The whole diagnostic in one call. */
+export async function listModels(apiKey: string): Promise<{ ok: boolean; models: string[]; error?: string; hint?: string }> {
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+      headers: { 'x-goog-api-key': apiKey },
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      const c = classifyFailure(res.status, text);
+      return { ok: false, models: [], error: c.detail, hint: c.hint };
+    }
+    const j = JSON.parse(text) as { models?: Array<{ name?: string; supportedGenerationMethods?: string[] }> };
+    const models = (j.models ?? [])
+      .filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+      .map(m => (m.name ?? '').replace(/^models\//, ''))
+      .filter(n => n && !/embedding|aqa|imagen|veo|tts|image-generation/i.test(n));
+    // flash first — free tier is generous with it and extraction does not need a pro model
+    models.sort((a, b) => Number(b.includes('flash')) - Number(a.includes('flash')) || b.localeCompare(a));
+    return { ok: true, models };
+  } catch (e) {
+    return { ok: false, models: [], error: (e as Error).message, hint: 'Could not reach Google from the server.' };
+  }
 }

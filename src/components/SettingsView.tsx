@@ -4,9 +4,11 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from './AppContext';
 import { MODEL_CHAIN } from '@/lib/gemini';
 import { IS_DEMO } from '@/lib/store';
-import { signOut } from './auth';
+import { signOut, supaAccessToken } from './auth';
 import { meetingSummary } from '@/lib/ics';
 import PushPanel from './PushPanel';
+
+interface KeyCheck { ok: boolean; models: string[]; error?: string; hint?: string; demo?: boolean }
 
 export default function SettingsView() {
   const app = useApp();
@@ -14,6 +16,8 @@ export default function SettingsView() {
   const s = data.settings;
   const [key, setKey] = useState(s.gemini_key);
   const [showKey, setShowKey] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [check, setCheck] = useState<KeyCheck | null>(null);
   const icsUrl = typeof location !== 'undefined' ? `${location.origin}/api/ics/${s.ics_token}` : '';
   const meetings = useMemo(() => meetingSummary(data), [data]);
 
@@ -29,14 +33,67 @@ export default function SettingsView() {
           <input type={showKey ? 'text' : 'password'} placeholder="Paste your Gemini API key"
             value={key} onChange={e => setKey(e.target.value)} style={{ flex: 1 }} />
           <button className="btn sm" onClick={() => setShowKey(!showKey)}>{showKey ? 'HIDE' : 'SHOW'}</button>
-          <button className="btn sm primary" onClick={() => { app.saveSettings({ gemini_key: key.trim() }); notify('Gemini key saved'); }}>SAVE</button>
+          <button className="btn sm primary" onClick={() => { app.saveSettings({ gemini_key: key.trim() }); setCheck(null); notify('Gemini key saved'); }}>SAVE</button>
         </div>
-        <div className="row" style={{ marginTop: 10 }}>
+
+        {key.trim() && !/^AIza[\w-]{20,}$/.test(key.trim()) && (
+          <div style={{ fontSize: 11.5, marginTop: 7, color: '#8C4A12', lineHeight: 1.55 }}>
+            That does not look like a Gemini API key — they start with{' '}
+            <strong className="code">AIza</strong> (capital A, capital I, lowercase z, lowercase a).
+            Keys copied from other parts of Google Cloud will be rejected. Get the right one at{' '}
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>.
+          </div>
+        )}
+
+        <div className="row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
           <span className="micro">MODEL</span>
-          <select value={s.gemini_model} onChange={e => app.saveSettings({ gemini_model: e.target.value })} style={{ width: 220 }}>
-            {[s.gemini_model, ...MODEL_CHAIN.filter(m => m !== s.gemini_model)].map(m => <option key={m} value={m}>{m}</option>)}
+          <select value={s.gemini_model} onChange={e => app.saveSettings({ gemini_model: e.target.value })} style={{ width: 230 }}>
+            {[...new Set([s.gemini_model, ...(check?.models ?? []), ...MODEL_CHAIN])]
+              .filter(Boolean).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <span className="mono faint" style={{ fontSize: 10 }}>auto-falls back down the chain if a model 404s or rate-limits</span>
+          <button className="btn sm" disabled={checking} onClick={async () => {
+            setChecking(true); setCheck(null);
+            try {
+              const token = await supaAccessToken();
+              const res = await fetch('/api/models', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+              const j = await res.json();
+              setCheck(j);
+              if (j.ok && j.models?.length && !j.models.includes(s.gemini_model)) {
+                app.saveSettings({ gemini_model: j.models[0] });
+                notify(`Switched to ${j.models[0]} — your old choice is not available on this key`, 'warn');
+              }
+            } catch (e) {
+              setCheck({ ok: false, models: [], error: (e as Error).message });
+            } finally { setChecking(false); }
+          }}>{checking ? 'Checking…' : 'Check key'}</button>
+        </div>
+
+        {check && (
+          <div style={{
+            marginTop: 10, border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px',
+            background: check.ok ? 'rgba(31,158,150,.06)' : 'rgba(224,85,95,.06)',
+          }}>
+            {check.ok ? (
+              <>
+                <div className="micro" style={{ color: '#145240' }}>
+                  KEY WORKS · {check.models.length} MODELS AVAILABLE{check.demo ? ' (DEMO LIST)' : ''}
+                </div>
+                <div className="mono faint" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.7 }}>
+                  {check.models.slice(0, 14).join('  ·  ')}{check.models.length > 14 ? `  …+${check.models.length - 14}` : ''}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="micro" style={{ color: '#A8241C' }}>KEY REJECTED</div>
+                <div style={{ fontSize: 12.5, marginTop: 5 }}>{check.error}</div>
+                {check.hint && <div style={{ fontSize: 12, marginTop: 5, color: 'var(--dim)', lineHeight: 1.55 }}>{check.hint}</div>}
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="mono faint" style={{ fontSize: 10, marginTop: 8 }}>
+          if a model is unavailable or rate-limited the extractor walks down the list on its own
         </div>
       </section>
 

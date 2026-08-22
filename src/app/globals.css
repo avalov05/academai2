@@ -73,6 +73,13 @@ body {
 }
 .micro-b { color: var(--text); font-weight: 600; }
 .mono { font-family: var(--font-m); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+/* A real monospace, for the few strings where a character has to be
+   unmistakable — an API key prefix in a proportional face reads "AIza" as
+   "Alza", which is exactly the kind of thing that wastes an evening. */
+.code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: .94em; letter-spacing: 0;
+}
 .display {
   font-weight: 700; letter-spacing: -0.034em; line-height: 1.02;
   color: var(--charcoal); text-transform: none;
