@@ -2,7 +2,7 @@
 // ── INTAKE: paste anything → extraction → review → commit ────────────────
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppContext';
-import { processExtraction, type RawExtraction, type ReviewPayload } from '@/lib/intake';
+import { processExtraction, type CorrectionCard, type RawExtraction, type ReviewCard, type ReviewPayload } from '@/lib/intake';
 import { fmtEt, etEndOfDay } from '@/lib/time';
 import { supaAccessToken } from '@/components/auth';
 import { IS_DEMO } from '@/lib/store';
@@ -129,13 +129,29 @@ export default function IntakeView() {
       });
       // 3) items
       const inserts: Array<Partial<Item> & { title: string }> = [];
-      let updates = 0;
+      let updates = 0, moved = 0, fixed = 0;
+      // a row in the main list and its entry in the corrections panel are the
+      // same fix seen twice — apply it once
+      const movedIds = new Set<string>();
       for (const card of review.cards.filter(c => c.include)) {
         const inc = card.incoming;
         const classId = inc.class_id
           ?? codeToId.get((card.classCode || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))
           ?? null;
-        if (card.verdict === 'UPDATE' && card.existingId) {
+        if (card.verdict === 'MOVE' && card.existingId) {
+          // the same real thing, already tracked under another course — move it
+          // rather than adding a second copy under this one
+          await app.updateItem(card.existingId, {
+            class_id: classId,
+            due_at: inc.due_at, all_day: inc.all_day, at_home: inc.at_home,
+            ...(inc.bucket ? { bucket: inc.bucket } : {}),
+            ...(inc.weight_pct != null ? { weight_pct: inc.weight_pct } : {}),
+            ...(inc.details ? { details: inc.details } : {}),
+            source_id: src.id,
+          });
+          moved++;
+          movedIds.add(card.existingId);
+        } else if (card.verdict === 'UPDATE' && card.existingId) {
           await app.updateItem(card.existingId, {
             due_at: inc.due_at, all_day: inc.all_day, at_home: inc.at_home,
             ...(inc.weight_pct != null ? { weight_pct: inc.weight_pct } : {}),
@@ -153,11 +169,30 @@ export default function IntakeView() {
         }
       }
       if (inserts.length) await app.insertItemsBatch(inserts);
+
+      // 3b) corrections to things that were already tracked
+      for (const c of review.corrections.filter(x => x.include)) {
+        if (c.kind === 'REASSIGN') {
+          if (movedIds.has(c.item.id)) continue;   // its row already moved it
+          await app.updateItem(c.item.id, { class_id: c.toClassId ?? null, source_id: src.id });
+          fixed++;
+        } else if (c.kind === 'DUPLICATE') {
+          await app.setStatus(c.item.id, 'dropped');
+          fixed++;
+        }
+        // ORPHAN is informational — ticking it changes nothing destructive
+      }
+
       // 4) holidays
       const hols = review.holidays.filter(h => h.include);
       if (hols.length) await app.insertHolidays(hols);
       sfx.boot();
-      notify(`Committed: ${inserts.length} new · ${updates} updated · ${review.newClasses.filter(c => c.include).length} classes`, 'ok');
+      notify(
+        `Committed: ${inserts.length} new · ${updates} updated`
+        + (moved ? ` · ${moved} moved to the right course` : '')
+        + (fixed ? ` · ${fixed} corrected` : '')
+        + ` · ${review.newClasses.filter(c => c.include).length} classes`,
+        'ok');
       setReview(null); setText(''); setFiles([]);
       app.setView('RADAR');
     } catch (e) {
@@ -260,7 +295,9 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
     NEW: review.cards.filter(c => c.verdict === 'NEW').length,
     UPDATE: review.cards.filter(c => c.verdict === 'UPDATE').length,
     KNOWN: review.cards.filter(c => c.verdict === 'KNOWN').length,
-  }), [review.cards]);
+    MOVE: review.cards.filter(c => c.verdict === 'MOVE').length,
+    FIX: review.corrections.filter(c => c.kind !== 'ORPHAN').length,
+  }), [review.cards, review.corrections]);
   const toggle = (key: string) => setReview({
     ...review,
     cards: review.cards.map(c => c.key === key ? { ...c, include: !c.include } : c),
@@ -273,7 +310,32 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
       return { ...c, incoming: { ...c.incoming, due_at, all_day: true }, include: !!date, assumption: 'date set manually' };
     }),
   });
-  const included = review.cards.filter(c => c.include).length + review.newClasses.filter(c => c.include).length;
+  /** Re-file one row. This is the escape hatch: whatever the extractor guessed,
+   *  a wrong course is two seconds to fix here instead of weeks to notice. */
+  const setCardClass = (key: string, classId: string | null) => setReview({
+    ...review,
+    cards: review.cards.map(c => {
+      if (c.key !== key) return c;
+      const k = data.classes.find(x => x.id === classId);
+      // re-filing away from the class the existing copy was matched in makes
+      // that match meaningless, so drop back to being a new item
+      const keepsMatch = c.verdict !== 'MOVE' && c.incoming.class_id === classId;
+      return {
+        ...c,
+        incoming: { ...c.incoming, class_id: classId },
+        classCode: k?.code ?? 'LIFE',
+        classNote: 'you set this course',
+        ...(keepsMatch ? {} : c.verdict === 'MOVE' ? {} : { verdict: 'NEW' as const, existingId: undefined, changes: undefined }),
+      };
+    }),
+  });
+  const toggleCorrection = (key: string) => setReview({
+    ...review,
+    corrections: review.corrections.map(c => c.key === key ? { ...c, include: !c.include } : c),
+  });
+  const included = review.cards.filter(c => c.include).length
+    + review.newClasses.filter(c => c.include).length
+    + review.corrections.filter(c => c.include).length;
 
   return (
     <>
@@ -281,7 +343,10 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
         <div>
           <div className="micro">REVIEW BEFORE COMMIT — YOU ARE THE FINAL AUTHORITY</div>
           <h2 className="display" style={{ fontSize: 26, margin: '4px 0' }}>
-            <span className="ok">{counts.NEW} NEW</span> · <span className="warn">{counts.UPDATE} UPDATES</span> · <span className="faint">{counts.KNOWN} KNOWN</span>
+            <span className="ok">{counts.NEW} NEW</span> · <span className="warn">{counts.UPDATE} UPDATES</span>
+            {counts.MOVE > 0 && <> · <span style={{ color: '#8C4A12' }}>{counts.MOVE} MISFILED</span></>}
+            {counts.FIX > 0 && <> · <span style={{ color: '#8C4A12' }}>{counts.FIX} TO FIX</span></>}
+            {' '}· <span className="faint">{counts.KNOWN} KNOWN</span>
           </h2>
           <div className="mono faint" style={{ fontSize: 10 }}>ENGINE: {modelUsed || 'demo'}</div>
         </div>
@@ -345,21 +410,23 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
         </div>
       )}
 
+      <CorrectionsPanel corrections={review.corrections} onToggle={toggleCorrection} />
+
       <div style={{ marginTop: 16 }}>
-        {(['UPDATE', 'NEW', 'KNOWN'] as const).map(v => review.cards.some(c => c.verdict === v) && (
+        {(['MOVE', 'UPDATE', 'NEW', 'KNOWN'] as const).map(v => review.cards.some(c => c.verdict === v) && (
           <div key={v} style={{ marginBottom: 14 }}>
             <div className="micro" style={{ marginBottom: 8 }}>
-              {v === 'NEW' ? '◆ NEW OBJECTS' : v === 'UPDATE' ? '◈ UPDATES TO EXISTING' : '◇ ALREADY TRACKED (no action)'}
+              {v === 'NEW' ? '◆ NEW OBJECTS'
+                : v === 'UPDATE' ? '◈ UPDATES TO EXISTING'
+                : v === 'MOVE' ? '⇄ ALREADY TRACKED, BUT ON THE WRONG COURSE'
+                : '◇ ALREADY TRACKED (no action)'}
             </div>
             {review.cards.filter(c => c.verdict === v).map(card => {
-              const k = data.classes.find(c2 => c2.id === card.incoming.class_id);
               return (
                 <div key={card.key} className={`panel verdict-${v}`} style={{ padding: '10px 14px', marginBottom: 6 }}>
                   <div className="row">
                     <input type="checkbox" checked={card.include} disabled={v === 'KNOWN'} onChange={() => toggle(card.key)} />
-                    <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}>
-                      <span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{card.classCode || 'LIFE'}
-                    </span>
+                    <ClassPicker card={card} onPick={id => setCardClass(card.key, id)} />
                     <span className="mono faint" style={{ fontSize: 9 }}>{card.incoming.type.toUpperCase()}{!card.incoming.at_home && '·IN-CLASS'}</span>
                     <span style={{ flex: 1 }}>{card.incoming.title}</span>
                     {card.incoming.due_at
@@ -371,6 +438,15 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
                     <div className="mono warn" style={{ fontSize: 10.5, marginTop: 5, paddingLeft: 24 }}>
                       {card.changes.map((ch, i) => <div key={i}>Δ {ch}</div>)}
                     </div>
+                  )}
+                  {card.verdict === 'MOVE' && (
+                    <div style={{ fontSize: 11, marginTop: 5, paddingLeft: 24, color: '#8C4A12' }}>
+                      ⇄ this already exists under <strong>{data.classes.find(c2 => c2.id === card.fromClassId)?.code ?? 'LIFE'}</strong> —
+                      committing moves it instead of creating a second copy
+                    </div>
+                  )}
+                  {card.classNote && (
+                    <div style={{ fontSize: 10.5, marginTop: 3, paddingLeft: 24, color: '#8C4A12' }}>⌖ {card.classNote}</div>
                   )}
                   {card.assumption && (
                     <div className="mono faint" style={{ fontSize: 10, marginTop: 3, paddingLeft: 24 }}>◦ {card.assumption}</div>
@@ -505,6 +581,106 @@ function FailurePanel({ f, onDismiss, onSettings }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Which course this row goes to — always visible, always changeable. */
+function ClassPicker({ card, onPick }: { card: ReviewCard; onPick: (id: string | null) => void }) {
+  const { data } = useApp();
+  const k = data.classes.find(c => c.id === card.incoming.class_id);
+  const unresolved = !card.incoming.class_id && card.classCode !== 'LIFE';
+  return (
+    <span className="row" style={{ gap: 5 }}>
+      <span className="dot" style={{
+        width: 8, height: 8, borderRadius: 2, display: 'inline-block',
+        background: k?.color ?? (unresolved ? '#E08A3C' : '#8A8A84'),
+      }} />
+      <select
+        value={card.incoming.class_id ?? ''}
+        onChange={e => onPick(e.target.value || null)}
+        title={card.rawCode ? `the document said "${card.rawCode}"` : 'no course code in the document'}
+        style={{
+          padding: '2px 6px', fontSize: 11, width: 116,
+          borderColor: unresolved ? '#E08A3C' : undefined,
+        }}
+      >
+        <option value="">{card.classCode && card.classCode !== 'LIFE' ? `${card.classCode} (new)` : 'LIFE'}</option>
+        {data.classes.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
+      </select>
+    </span>
+  );
+}
+
+const CORRECTION_LABEL: Record<string, { title: string; tone: string }> = {
+  REASSIGN: { title: 'MOVE TO THE RIGHT COURSE', tone: '#8C4A12' },
+  DUPLICATE: { title: 'TRACKED TWICE', tone: '#A8241C' },
+  ORPHAN: { title: 'ON THIS COURSE BUT NOT IN THIS SYLLABUS', tone: '#63635f' },
+};
+
+/**
+ * What this document says about things already tracked. The point of uploading
+ * a syllabus is not only to add what is missing — it is to find out what is
+ * wrong, which is the part you cannot do by hand.
+ */
+function CorrectionsPanel({ corrections, onToggle }: {
+  corrections: CorrectionCard[]; onToggle: (key: string) => void;
+}) {
+  const { data } = useApp();
+  const codeOf = (id: string | null | undefined) =>
+    id ? data.classes.find(c => c.id === id)?.code ?? '—' : 'LIFE';
+  const groups = (['REASSIGN', 'DUPLICATE', 'ORPHAN'] as const)
+    .map(kind => ({ kind, rows: corrections.filter(c => c.kind === kind) }))
+    .filter(g => g.rows.length);
+  if (!groups.length) return null;
+
+  const actionable = corrections.filter(c => c.kind !== 'ORPHAN').length;
+  return (
+    <div className="panel corner" style={{
+      padding: 15, marginTop: 14,
+      borderColor: actionable ? '#e8bf95' : 'var(--line)',
+      background: actionable ? 'rgba(224,138,60,.05)' : undefined,
+    }}>
+      <i className="c3" />
+      <div className="micro" style={{ marginBottom: 4, color: actionable ? '#8C4A12' : 'var(--dim)' }}>
+        ⇄ CROSS-CHECK AGAINST WHAT YOU ALREADY TRACK — {corrections.length} FINDING{corrections.length === 1 ? '' : 'S'}
+      </div>
+      <div className="dim" style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.55 }}>
+        Ticked changes are applied to existing items when you commit.
+      </div>
+
+      {groups.map(g => (
+        <div key={g.kind} style={{ marginTop: 10 }}>
+          <div className="micro" style={{ fontSize: 9.5, color: CORRECTION_LABEL[g.kind].tone, marginBottom: 5 }}>
+            {CORRECTION_LABEL[g.kind].title} · {g.rows.length}
+          </div>
+          {g.rows.map(c => (
+            <div key={c.key} style={{
+              border: '1px solid var(--line)', borderRadius: 9, background: '#fff',
+              padding: '8px 11px', marginBottom: 5,
+            }}>
+              <div className="row" style={{ gap: 9 }}>
+                <input type="checkbox" checked={c.include} onChange={() => onToggle(c.key)} />
+                <span className="chip" style={{ fontSize: 9.5, padding: '2px 8px' }}>{codeOf(c.item.class_id)}</span>
+                <span style={{ flex: 1, fontSize: 12.5 }}>{c.item.title}</span>
+                {c.kind === 'REASSIGN' && (
+                  <span className="chip" style={{ fontSize: 9.5, padding: '2px 8px', borderColor: '#e8bf95', color: '#8C4A12' }}>
+                    → {codeOf(c.toClassId)}
+                  </span>
+                )}
+                {c.kind === 'DUPLICATE' && (
+                  <span className="chip hot" style={{ fontSize: 9.5, padding: '2px 8px' }}>drop this copy</span>
+                )}
+                {c.item.due_at && (
+                  <span className="mono faint" style={{ fontSize: 10.5 }}>{fmtEt(new Date(c.item.due_at), 'MMM d')}</span>
+                )}
+              </div>
+              <div style={{ fontSize: 10.5, marginTop: 3, paddingLeft: 25, color: 'var(--dim)' }}>{c.reason}</div>
+              {c.detail && <div className="mono faint" style={{ fontSize: 10, marginTop: 2, paddingLeft: 25 }}>{c.detail}</div>}
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

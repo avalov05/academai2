@@ -1,6 +1,6 @@
 // ── Intake processing: Gemini JSON → reviewable, committable payload ──────
-import type { AppData, ClassComponent, ComponentKind, GradeBucket, ItemType, Klass } from './types';
-import { classifyIncoming, type Classified, type IncomingItem } from './dedupe';
+import type { AppData, ClassComponent, ComponentKind, GradeBucket, Item, ItemType, Klass } from './types';
+import { classifyIncoming, dice, findDuplicates, sameIdentity, type Classified, type IncomingItem, type Verdict } from './dedupe';
 import { addDaysStr, etToUtc, etEndOfDay, etWeekday, todayEt } from './time';
 import { nextColor } from './palette';
 
@@ -41,7 +41,7 @@ export interface NewClassDraft {
 
 export interface ReviewCard {
   key: string;
-  verdict: 'NEW' | 'UPDATE' | 'KNOWN';
+  verdict: Verdict;
   include: boolean;
   incoming: IncomingItem;
   existingId?: string;
@@ -49,6 +49,23 @@ export interface ReviewCard {
   assumption?: string;   // e.g. "assumed 23:59", "expanded from weekly pattern"
   classCode: string;     // display
   confidence: string;
+  /** MOVE only: where the existing copy is filed today */
+  fromClassId?: string | null;
+  /** why this row landed on this class, shown when it was not obvious */
+  classNote?: string;
+  /** the extractor's raw code, so the picker can explain itself */
+  rawCode?: string;
+}
+
+export interface CorrectionCard {
+  key: string;
+  kind: 'REASSIGN' | 'DUPLICATE' | 'ORPHAN';
+  include: boolean;
+  item: Item;
+  toClassId?: string | null;
+  otherId?: string;
+  reason: string;
+  detail: string;
 }
 
 export interface ReviewPayload {
@@ -57,20 +74,102 @@ export interface ReviewPayload {
   holidays: Array<{ date: string; name: string; include: boolean }>;
   coverage: string[];
   detectedClassId: string | null;
+  /** proposed fixes to things already tracked */
+  corrections: CorrectionCard[];
 }
 
 const VALID_TYPES = new Set(['assignment', 'quiz', 'exam', 'project', 'reading', 'task', 'social', 'admin']);
 const VALID_KINDS = new Set(['LEC', 'REC', 'LAB', 'SEM', 'STU', 'OTH']);
 
-function normCode(s: string): string { return s.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+export function normCode(s: string): string { return s.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 
+/** "CH 221" → {CH, 221}; "242" → {"", 242}; "BIOCHEM" → {BIOCHEM, ""} */
+function splitCode(s: string): { dept: string; num: string } {
+  const t = s.toUpperCase().trim();
+  const m = t.match(/^([A-Z]{1,6})\s*[-_ ]?\s*(\d{2,4})\b/);
+  if (m) return { dept: m[1], num: m[2] };
+  const numOnly = t.match(/^(\d{2,4})$/);
+  if (numOnly) return { dept: '', num: numOnly[1] };
+  return { dept: normCode(s), num: '' };
+}
+
+export interface ClassMatch {
+  klass: Klass | null;
+  /** 0..1 — how sure. Below CONFIDENT the caller should not file anything here. */
+  score: number;
+  /** two classes were equally plausible; guessing would be worse than asking */
+  ambiguous: boolean;
+  why: string;
+}
+
+const CONFIDENT = 0.72;
+
+/** How well does one code/name refer to this class? 0 = not at all. */
+function scoreClass(raw: string, k: Klass): { score: number; why: string } {
+  const n = normCode(raw);
+  if (!n) return { score: 0, why: '' };
+  const kn = normCode(k.code);
+  if (n === kn) return { score: 1, why: 'exact code match' };
+
+  const a = splitCode(raw), b = splitCode(k.code);
+  if (a.num && b.num) {
+    // Different course numbers are different courses, full stop. This is the
+    // guard that used to be missing: the old both-ways substring test was happy
+    // to conflate "CH 221" with anything else containing "CH".
+    if (a.num !== b.num) return { score: 0, why: '' };
+    // number alone; unique-ness is enforced by the margin rule in resolveClass
+    if (!a.dept) return { score: 0.75, why: 'course number matches' };
+    if (a.dept === b.dept) return { score: 0.98, why: 'department and number match' };
+    if (a.dept.startsWith(b.dept) || b.dept.startsWith(a.dept)) {
+      return { score: 0.88, why: `number matches and "${a.dept}" abbreviates "${b.dept}"` };
+    }
+    return { score: 0.34, why: 'number matches but the department does not' };
+  }
+
+  // Only letters came through ("CHEM"). Again, ambiguity is caught by margin.
+  if (a.dept && !a.num && b.dept
+    && (a.dept === b.dept || a.dept.startsWith(b.dept) || b.dept.startsWith(a.dept))) {
+    return { score: 0.76, why: 'department matches' };
+  }
+
+  // Fall back to the course *name* — models often return "Organic Chemistry"
+  const nameScore = dice(raw.toLowerCase().trim(), k.name.toLowerCase().trim());
+  if (nameScore >= 0.7) return { score: 0.6 + nameScore * 0.3, why: 'course name matches' };
+  return { score: 0, why: '' };
+}
+
+/**
+ * Which class does this code refer to? Returns *why*, and refuses to answer when
+ * two classes are equally plausible.
+ *
+ * The old version fell back to a substring test in both directions, so a stray
+ * "CH" matched PSYCH 101 and the first class in array order won ties silently.
+ * Filing a deadline under the wrong course is worse than admitting uncertainty.
+ */
+export function resolveClass(raw: string, classes: Klass[]): ClassMatch {
+  if (!raw || !raw.trim()) return { klass: null, score: 0, ambiguous: false, why: 'no code given' };
+  const scored = classes
+    .map(k => ({ k, ...scoreClass(raw, k) }))
+    .filter(x => x.score > 0)
+    .sort((x, y) => y.score - x.score);
+  if (!scored.length) return { klass: null, score: 0, ambiguous: false, why: `no class matches "${raw}"` };
+  const best = scored[0];
+  const runnerUp = scored[1];
+  if (runnerUp && best.score - runnerUp.score < 0.1) {
+    return {
+      klass: null, score: best.score, ambiguous: true,
+      why: `"${raw}" could be ${best.k.code} or ${runnerUp.k.code}`,
+    };
+  }
+  if (best.score < CONFIDENT) {
+    return { klass: null, score: best.score, ambiguous: true, why: `"${raw}" is only a weak match for ${best.k.code}` };
+  }
+  return { klass: best.k, score: best.score, ambiguous: false, why: best.why };
+}
+
+/** Back-compat shim for callers that only want the class. */
 export function matchClass(code: string, classes: Klass[]): Klass | null {
-  if (!code) return null;
-  const n = normCode(code);
-  if (!n) return null;
-  return classes.find(c => normCode(c.code) === n)
-    ?? classes.find(c => normCode(c.code).includes(n) || n.includes(normCode(c.code)))
-    ?? null;
+  return resolveClass(code, classes).klass;
 }
 
 const isDate = (s: string | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -140,13 +239,49 @@ export function processExtraction(raw: RawExtraction, data: AppData): ReviewPayl
     compsByClass.set(c.class_id, [...(compsByClass.get(c.class_id) ?? []), c]);
   }
 
+  // A syllabus is about one course. When an item's own code is missing, wrong,
+  // or ambiguous, that is the course it almost certainly belongs to — far
+  // better than the old behaviour of quietly filing it under LIFE.
+  const docClass = resolveClass(raw.detected_class_code ?? '', data.classes);
+  const docNewClass = newClasses.length === 1 ? newClasses[0] : null;
+
   for (const ri of raw.items ?? []) {
     if (!ri.title) continue;
     const type = (VALID_TYPES.has(ri.type ?? '') ? ri.type : 'task') as ItemType;
-    const cls = matchClass(ri.class_code ?? '', data.classes);
-    const isNewClass = !cls && !!newClasses.find(n => normCode(n.code) === normCode(ri.class_code ?? ''));
+    const rawCode = (ri.class_code ?? '').trim();
+    const m = resolveClass(rawCode, data.classes);
+    let cls = m.klass;
+    let classNote = '';
+
+    const newMatch = newClasses.find(n => normCode(n.code) === normCode(rawCode));
+    let isNewClass = !cls && !!newMatch;
+
+    if (!cls && !isNewClass) {
+      // fall back to the document's own class
+      if (docClass.klass) {
+        cls = docClass.klass;
+        classNote = rawCode
+          ? `"${rawCode}" did not match a class — filed under ${cls.code} because that is what this document is about`
+          : `no course code on this item — filed under ${cls.code} because that is what this document is about`;
+      } else if (docNewClass) {
+        isNewClass = true;
+        classNote = rawCode
+          ? `"${rawCode}" did not match a class — filed under the new ${docNewClass.code}`
+          : `no course code on this item — filed under the new ${docNewClass.code}`;
+      } else if (rawCode) {
+        classNote = m.ambiguous
+          ? `${m.why} — left unassigned so you can pick`
+          : `"${rawCode}" does not match any class you have`;
+      }
+    } else if (m.ambiguous) {
+      classNote = m.why;
+    } else if (cls && m.score < 1) {
+      classNote = `matched ${cls.code} — ${m.why}`;
+    }
+
+    const effectiveNewCode = isNewClass ? (newMatch?.code ?? docNewClass?.code ?? rawCode) : '';
     const classId = cls?.id ?? null;
-    const classCode = cls?.code ?? (isNewClass ? (ri.class_code ?? '').trim() : (ri.class_code || 'LIFE'));
+    const classCode = cls?.code ?? (isNewClass ? effectiveNewCode : (rawCode || 'LIFE'));
 
     const instances: Array<{ date: string; assumption?: string; suffix?: string }> = [];
     const listedDates = (ri.recurrence?.dates ?? []).filter(isDate).sort();
@@ -214,7 +349,10 @@ export function processExtraction(raw: RawExtraction, data: AppData): ReviewPayl
         incoming,
         existingId: cls2.existing?.id,
         changes: cls2.changes,
+        fromClassId: cls2.fromClassId,
         assumption: assumption || undefined,
+        classNote: classNote || undefined,
+        rawCode: rawCode || undefined,
         classCode,
         confidence: ri.confidence ?? 'medium',
       });
@@ -227,9 +365,71 @@ export function processExtraction(raw: RawExtraction, data: AppData): ReviewPayl
     .filter(h => isDate(h.date))
     .map(h => ({ date: h.date!, name: h.name ?? 'No class', include: !knownHol.has(h.date!) }));
 
+  // 4) corrections — what this document says about things already tracked
+  const corrections = buildCorrections(cards, data, docClass.klass?.id ?? null);
+
   return {
-    cards, newClasses, holidays,
+    cards, newClasses, holidays, corrections,
     coverage: raw.coverage_notes ?? [],
-    detectedClassId: matchClass(raw.detected_class_code ?? '', data.classes)?.id ?? null,
+    detectedClassId: docClass.klass?.id ?? null,
   };
+}
+
+/**
+ * The cross-check. A syllabus is the authority on its own course, so an upload
+ * is the right moment to ask: is anything already tracked filed wrongly, listed
+ * twice, or sitting on this course without appearing in the document at all?
+ */
+function buildCorrections(cards: ReviewCard[], data: AppData, docClassId: string | null): CorrectionCard[] {
+  const out: CorrectionCard[] = [];
+  const byId = new Map(data.classes.map(c => [c.id, c]));
+  const nameOf = (id: string | null | undefined) => (id ? byId.get(id)?.code ?? 'a deleted class' : 'LIFE');
+  let k = 0;
+
+  // (a) things this document proves are on the wrong course
+  for (const c of cards) {
+    if (c.verdict !== 'MOVE' || !c.existingId) continue;
+    const ex = data.items.find(i => i.id === c.existingId);
+    if (!ex) continue;
+    out.push({
+      key: `mv${k++}`, kind: 'REASSIGN', include: true, item: ex,
+      toClassId: c.incoming.class_id,
+      reason: `filed under ${nameOf(ex.class_id)}, but this document lists it under ${nameOf(c.incoming.class_id)}`,
+      detail: (c.changes ?? []).join(' · '),
+    });
+  }
+
+  // (b) standing duplicates across courses — visible without the document
+  const seen = new Set(out.map(o => o.item.id));
+  for (const d of findDuplicates(data.items)) {
+    if (seen.has(d.item.id) || seen.has(d.other?.id ?? '')) continue;
+    seen.add(d.item.id);
+    out.push({
+      key: `dup${k++}`, kind: 'DUPLICATE', include: false, item: d.item,
+      otherId: d.other?.id,
+      reason: `also tracked under ${nameOf(d.other?.class_id)} — probably one thing, not two`,
+      detail: d.other ? `keep the ${nameOf(d.other.class_id)} copy, drop this one` : '',
+    });
+  }
+
+  // (c) items on this course that the document never mentions. Not necessarily
+  // wrong — plenty comes from Moodle — so this is informational and off by
+  // default. It is still the thing that catches a deadline that got renamed.
+  if (docClassId) {
+    const mentioned = cards.filter(c => c.existingId).map(c => c.existingId);
+    const incoming = cards.map(c => c.incoming);
+    for (const ex of data.items) {
+      if (ex.class_id !== docClassId || ex.ghost || ex.status !== 'pending') continue;
+      if (mentioned.includes(ex.id)) continue;
+      if (ex.type === 'study') continue;              // the planner made those
+      if (incoming.some(inc => sameIdentity(inc, ex, true))) continue;
+      if (seen.has(ex.id)) continue;
+      out.push({
+        key: `orp${k++}`, kind: 'ORPHAN', include: false, item: ex,
+        reason: `on ${nameOf(docClassId)} but not in this syllabus`,
+        detail: 'fine if it came from Moodle or an email — worth a look if you do not recognise it',
+      });
+    }
+  }
+  return out;
 }

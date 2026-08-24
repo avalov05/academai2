@@ -91,6 +91,12 @@ function seed(): AppData {
     mkItem({ class_id: ch.id, type: 'exam', title: 'Midterm 1', bucket: 'Midterm 1', weight_pct: 15, due_at: d(12, '09:35'), all_day: false, at_home: false, details: 'Ch. 1–5', effort_min: 0 }),
     mkItem({ class_id: ch.id, type: 'assignment', title: 'Pre-lab: Distillation', bucket: 'Lab', due_at: d(4, '13:30'), all_day: false, effort_min: 40 }),
     mkItem({ class_id: bio.id, type: 'assignment', title: 'Homework 3 — Cell Membranes', bucket: 'Homework', due_at: d(1, '23:59'), all_day: false, effort_min: 90 }),
+    // Deliberately misfiled: this is a CH 221 problem set sitting on BIO 183.
+    // Pasting the CH 221 syllabus should notice and offer to move it, rather
+    // than adding a second copy under the right course.
+    mkItem({ class_id: bio.id, type: 'assignment', title: 'Problem Set 4', bucket: 'Homework', due_at: etToUtc(`${new Date().getFullYear()}-09-18`, '23:59').toISOString(), all_day: false, effort_min: 150, details: 'Ch. 5 — SN1/SN2' }),
+    // The same obligation entered twice under two courses.
+    mkItem({ class_id: mth.id, type: 'assignment', title: 'Lab safety module', bucket: 'WebAssign', due_at: inHours(17), all_day: false, effort_min: 45 }),
     mkItem({ class_id: bio.id, type: 'reading', title: 'Read Ch. 7 before lecture', due_at: d(3, '11:45'), all_day: false, effort_min: 50 }),
     mkItem({ class_id: bio.id, type: 'exam', title: 'Exam 1', bucket: 'Exams', due_at: d(16, '11:45'), all_day: false, at_home: false, details: 'Units 1–3', effort_min: 0 }),
     mkItem({ class_id: phi.id, type: 'task', title: 'Discussion post: Autonomy', bucket: 'Discussion Posts', due_at: d(2, '23:59'), all_day: false, effort_min: 45 }),
