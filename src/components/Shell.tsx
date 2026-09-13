@@ -1,5 +1,13 @@
 'use client';
 // ── App shell: nav, status, keyboard map, view switching ─────────────────
+//
+// Visual rebuild: the topbar reads as a glass instrument panel (heavier
+// blur, layered ambient shadow, a gradient hairline seam) instead of a flat
+// bar with a hard rule under it. Status pills sit in a shallow neumorphic
+// recess — a soft inset shadow + a bright top edge — so they read as
+// machined into the panel rather than floating loosely in a row. None of
+// the underlying view-switching, keyboard map, or counting logic changed;
+// this is markup and class names only.
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp, type View } from './AppContext';
 import Radar from './Radar';
@@ -38,8 +46,8 @@ function Clock() {
     return () => clearInterval(i);
   }, []);
   return (
-    <span className="mono dim num" style={{ fontSize: 'var(--t-xs)' }} suppressHydrationWarning>
-      {t ? `${fmtEt(t, 'HH:mm:ss')} ET` : ' '}
+    <span className="mono dim num" style={{ fontSize: 'var(--t-xs)', padding: '0 8px 0 2px' }} suppressHydrationWarning>
+      {t ? `${fmtEt(t, 'HH:mm:ss')} ET` : ' '}
     </span>
   );
 }
@@ -85,7 +93,7 @@ export default function Shell() {
       <header className="topbar">
         <h1 className="brand">
           <span className="sig" aria-hidden="true" />
-          <span translate="no">ACADEM<span className="acc">AI</span></span>
+          <span translate="no">ACADEM<span className="brand-tag">AI</span></span>
         </h1>
         <nav className="nav" aria-label="Views">
           {NAV.map(n => (
@@ -108,27 +116,31 @@ export default function Shell() {
         </nav>
         <div className="spacer" />
         <div className="right">
-          {overdueCount > 0 && <span className="chip hot">{overdueCount} OVERDUE</span>}
-          {inZone > 0 && (
-            <span className="chip danger-zone" title="due within 24 hours — the band where a miss stops being recoverable">
-              {inZone} IN 24H
-            </span>
-          )}
-          <span className="chip">{dueToday} DUE TODAY</span>
-          <span className="chip ok" title="on-time / missed / day streak">{intg.missed === 0 ? `0 MISSED · ${intg.streakDays}D` : `${intg.missed} MISSED`}</span>
-          <button className="btn sm primary" type="button" onClick={() => app.setPanicOpen(true)} title="Panic: I have N minutes (P)">Panic</button>
-          <button
-            className="btn sm"
-            type="button"
-            onClick={() => setView('SETTINGS')}
-            aria-label="Settings"
-            title="Settings (S)"
-            style={{ padding: '5px 10px' }}
-          >
-            <span aria-hidden="true">⚙</span>
-          </button>
-          <ThemeToggle />
-          <Clock />
+          <div className="status-tray">
+            {overdueCount > 0 && <span className="chip hot">{overdueCount} OVERDUE</span>}
+            {inZone > 0 && (
+              <span className="chip danger-zone" title="due within 24 hours — the band where a miss stops being recoverable">
+                {inZone} IN 24H
+              </span>
+            )}
+            <span className="chip">{dueToday} DUE TODAY</span>
+            <span className="chip ok" title="on-time / missed / day streak">{intg.missed === 0 ? `0 MISSED · ${intg.streakDays}D` : `${intg.missed} MISSED`}</span>
+          </div>
+          <div className="control-tray">
+            <button className="btn sm primary" type="button" onClick={() => app.setPanicOpen(true)} title="Panic: I have N minutes (P)">Panic</button>
+            <button
+              className="btn sm"
+              type="button"
+              onClick={() => setView('SETTINGS')}
+              aria-label="Settings"
+              title="Settings (S)"
+              style={{ padding: '5px 10px' }}
+            >
+              <span aria-hidden="true">⚙</span>
+            </button>
+            <ThemeToggle />
+            <Clock />
+          </div>
         </div>
       </header>
 
@@ -144,18 +156,11 @@ export default function Shell() {
       </main>
 
       {view === 'RADAR' && !needsSetup && (
-        <footer
-          aria-label="Radar legend and shortcuts"
-          style={{
-            position: 'fixed', left: 0, right: 0,
-            bottom: 'env(safe-area-inset-bottom, 0px)',
-            padding: '10px 18px', display: 'flex', gap: 18,
-            pointerEvents: 'none', flexWrap: 'wrap',
-          }}
-        >
-          <span className="mono dim" style={{ fontSize: 10 }}>◆ COMMITTED · ◇ PROPOSED (dashed) · CENTER = NOW · RIM = 3 WEEKS OUT</span>
-          <span className="mono dim" style={{ fontSize: 10 }}>RINGED ◆ = TEST (EXAM / IN-CLASS QUIZ) · ■ PROJECT · ● WORK</span>
-          <span className="mono dim right-align" style={{ fontSize: 10 }}>⌘&nbsp;K PALETTE · P PANIC · V PASTE-IN · CLICK BLIP = DETAIL</span>
+        <footer className="radar-hud" aria-label="Radar legend and shortcuts">
+          <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--text)', color: 'var(--text)' }} />Committed · <span aria-hidden="true">◇</span> Proposed (dashed)</span>
+          <span className="legend-item">Center = now · Rim = 3 weeks out</span>
+          <span className="legend-item">Ringed <span aria-hidden="true">◆</span> = test · <span aria-hidden="true">■</span> Project · <span aria-hidden="true">●</span> Work</span>
+          <span className="legend-item right-align">⌘&nbsp;K Palette · P Panic · V Paste-in · Click blip = detail</span>
         </footer>
       )}
 

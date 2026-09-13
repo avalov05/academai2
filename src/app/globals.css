@@ -573,17 +573,26 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
   background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, #ff6a88 40%, transparent) 20%, color-mix(in srgb, #a8b2ff 40%, transparent) 55%, transparent 85%);
   opacity: .5; pointer-events: none;
 }
+/* Swiss logotype: massive negative tracking, weight carries the identity
+   instead of a colour word — the accent lives in the mark and the rule
+   beneath the active tab, not smeared across the wordmark. */
 .brand {
-  display: flex; align-items: center; gap: var(--s-3);
+  display: flex; align-items: center; gap: 10px;
   padding: 0 26px 0 30px;
   padding-left: max(30px, env(safe-area-inset-left));
-  font-weight: 700; letter-spacing: -0.03em; font-size: 15px; color: var(--text);
+  font-weight: 800; letter-spacing: -0.05em; font-size: 17px; color: var(--text);
   margin: 0;
 }
 .brand .sig {
   width: 13px; height: 13px; border-radius: var(--r-micro);
   background: var(--brand-grad);
   box-shadow: 0 0 0 3px color-mix(in srgb, #ff6a88 16%, transparent), 0 2px 6px -1px rgba(255, 106, 136, .45);
+}
+/* the tiny superscript "AI" tag — Swiss micro-typography detail: the
+   accent is a small, precisely-tracked mark, not the whole wordmark glowing */
+.brand-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: .08em;
+  color: var(--acc); vertical-align: super; margin-left: 1px;
 }
 .nav { display: flex; min-width: 0; }
 .nav button {
@@ -602,7 +611,26 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 }
 .nav button .k { margin-left: 5px; opacity: .28; font-size: 9px; }
 .topbar .spacer { flex: 1; min-width: 0; }
-.topbar .right { display: flex; align-items: center; gap: var(--s-3); flex: 0 0 auto; }
+.topbar .right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+/* status + control trays: a shallow neumorphic recess (soft inset shadow +
+   a bright top edge) so the instrument-panel pills read as machined into
+   the bar rather than floating loose chips in a row */
+.status-tray, .control-tray {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--paper) 50%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: var(--edge-hi), inset 0 -1px 3px rgba(20, 20, 16, .035);
+}
+.control-tray { padding-left: 10px; }
+.dark .status-tray, .dark .control-tray,
+:root[data-theme='dark'] .status-tray, :root[data-theme='dark'] .control-tray {
+  box-shadow: var(--edge-hi-strong), inset 0 -1px 3px rgba(0, 0, 0, .3);
+}
+/* the status chips inside the tray get tabular figures — they're readouts,
+   not labels, and a shifting digit width reads as flickering */
+.status-tray .chip { font-variant-numeric: tabular-nums; }
 
 /* Laptop widths: the status pills are load-bearing, the nav padding is not.
    Tighten the nav before anything is allowed to push the bar wider than the
@@ -642,13 +670,80 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .theme-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .theme-toggle svg { width: 14px; height: 14px; display: block; }
 
-/* ── radar ── */
-.radar-wrap { position: relative; }
+/* ── radar: a glass instrument dome ───────────────────────────────────────
+   The canvas draws the scope's pixels (rings, sweep, blips); the DOM around
+   it supplies the actual glassmorphism (backdrop-blur is a real optical
+   effect only a real DOM layer can produce — faking it inside canvas
+   pixel-by-pixel would be both dishonest and slow). The dome sits behind
+   the canvas as a fixed, non-scrolling frame, so blurring it is free. */
+.radar-wrap { position: relative; border-radius: var(--r-card-lg); isolation: isolate; }
+.radar-dome {
+  position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+  background:
+    radial-gradient(120% 85% at 26% 10%, color-mix(in srgb, var(--acc) 6%, transparent), transparent 62%),
+    linear-gradient(165deg, color-mix(in srgb, var(--paper) 72%, transparent) 0%, color-mix(in srgb, var(--bg-alt) 60%, transparent) 100%);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow), var(--edge-hi), inset 0 50px 90px -70px rgba(20, 20, 16, .18);
+  backdrop-filter: blur(20px) saturate(1.35); -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  pointer-events: none;
+}
+.dark .radar-dome,
+:root[data-theme='dark'] .radar-dome {
+  box-shadow: var(--shadow-dark), var(--edge-hi-strong), inset 0 50px 90px -70px rgba(0, 0, 0, .55);
+}
+.radar-wrap canvas { position: relative; z-index: 1; }
+/* viewfinder registration marks — the Swiss-instrument detail: a scope has
+   corners, not a soft vignette */
+.radar-corner {
+  position: absolute; z-index: 2; width: 20px; height: 20px; pointer-events: none;
+  border-color: color-mix(in srgb, var(--acc) 45%, var(--line-strong));
+  opacity: .5;
+}
+.radar-corner.tl { top: 16px; left: 16px; border-top: 2px solid; border-left: 2px solid; border-radius: 7px 0 0 0; }
+.radar-corner.tr { top: 16px; right: 16px; border-top: 2px solid; border-right: 2px solid; border-radius: 0 7px 0 0; }
+.radar-corner.bl { bottom: 16px; left: 16px; border-bottom: 2px solid; border-left: 2px solid; border-radius: 0 0 0 7px; }
+.radar-corner.br { bottom: 16px; right: 16px; border-bottom: 2px solid; border-right: 2px solid; border-radius: 0 0 7px 0; }
+
+/* the coordinate readout in the corner — Swiss-grid micro-typography */
+.radar-readout {
+  position: absolute; top: 16px; left: 44px; z-index: 2; pointer-events: none;
+  font-family: var(--font-m); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* the blip tooltip: a true glass HUD card — blurred, edge-lit, spring-in */
 .blip-tip {
   position: fixed; z-index: 50; pointer-events: none;
-  background: var(--paper); border: 1px solid var(--line);
-  border-radius: var(--r-card); padding: var(--s-4) 14px; max-width: 300px;
-  box-shadow: var(--shadow-dark);
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-card); padding: 13px 15px; max-width: 300px;
+  box-shadow: var(--shadow-dark), var(--edge-hi);
+  animation: tipIn .22s var(--ease-spring) both;
+}
+@keyframes tipIn { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* the legend/shortcut bar under the radar — a glass HUD readout strip */
+.radar-hud {
+  display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap;
+  padding: 11px 20px;
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(11px, env(safe-area-inset-bottom));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 -1px 0 var(--line);
+  pointer-events: none;
+}
+.radar-hud .legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-m); font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap;
+}
+.radar-hud .legend-dot {
+  width: 6px; height: 6px; border-radius: 2px; flex: none;
+  box-shadow: 0 0 7px currentColor;
 }
 
 /* ── slide-over ── */
