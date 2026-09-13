@@ -17,18 +17,28 @@ export default function PanicModal() {
 
   return (
     <div className="modal-wrap" onClick={() => setPanicOpen(false)}>
-      <div className="modal panel-solid corner dark" style={{ padding: 24 }} onClick={e => e.stopPropagation()}>
+      <div
+        className="modal panel-solid corner dark"
+        role="dialog" aria-modal="true" aria-labelledby="panic-title"
+        style={{ padding: 24, overflowY: 'auto' }}
+        onClick={e => e.stopPropagation()}
+      >
         <i className="c3" />
-        <div className="micro" style={{ color: "#FF949C" }}>PANIC PROTOCOL</div>
-        <h2 className="display" style={{ fontSize: 30, margin: '6px 0 2px' }}>
+        <div className="micro" style={{ color: '#FF949C' }}>PANIC PROTOCOL</div>
+        <h2 id="panic-title" className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '6px 0 2px' }}>
           I have <span className="iridescent-text num">{mins}</span> minutes
         </h2>
-        <div className="mono dim" style={{ fontSize: 11, marginBottom: 14 }}>OPTIMIZED BY URGENCY × GRADE IMPACT ÷ EFFORT. NO THINKING REQUIRED — EXECUTE.</div>
+        <div className="mono dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 14 }}>OPTIMIZED BY URGENCY × GRADE IMPACT ÷ EFFORT. NO THINKING REQUIRED. EXECUTE.</div>
         <div className="row" style={{ marginBottom: 6 }}>
           {PRESETS.map(p => (
-            <button key={p} className={`btn sm ${p === mins ? 'primary' : ''}`} onClick={() => { setMins(p); sfx.tick(); }}>{p}M</button>
+            <button key={p} type="button" className={`btn sm ${p === mins ? 'primary' : ''}`}
+              aria-pressed={p === mins}
+              onClick={() => { setMins(p); sfx.tick(); }}>{p}M</button>
           ))}
-          <input type="range" min={15} max={300} step={15} value={mins} onChange={e => setMins(Number(e.target.value))} style={{ flex: 1 }} />
+          <label className="sr-only" htmlFor="panic-mins">Minutes available</label>
+          <input id="panic-mins" type="range" min={15} max={300} step={15} value={mins}
+            aria-valuetext={`${mins} minutes`}
+            onChange={e => setMins(Number(e.target.value))} style={{ flex: 1 }} />
         </div>
         <hr className="hairline" style={{ margin: '12px 0', borderColor: 'rgba(255,255,255,.14)' }} />
         {picks.length === 0 && <div className="mono ok" style={{ padding: 20, textAlign: 'center', fontSize: 13 }}>Nothing urgent. The radar is quiet — rest, or get ahead.</div>}
@@ -49,8 +59,9 @@ export default function PanicModal() {
                   {p.why}{p.item.due_at ? ` · due in ${humanDelta(new Date(p.item.due_at).getTime() - now.getTime())}` : ''}
                 </div>
               </div>
-              <span className="mono num" style={{ fontSize: 13, color: "#9BA9F7" }}>{p.minutes}m</span>
-              <button className="btn sm" onClick={() => setStatus(p.item.id, 'done')}>DONE ✓</button>
+              <span className="mono num" style={{ fontSize: 'var(--t-base)', color: '#9BA9F7' }}>{p.minutes}m</span>
+              <button className="btn sm" type="button" aria-label={`Mark ${p.item.title} done`}
+                onClick={() => setStatus(p.item.id, 'done')}>DONE <span aria-hidden="true">✓</span></button>
             </div>
           );
         })}

@@ -61,27 +61,47 @@ export default function TableView() {
     return () => window.removeEventListener('keydown', h);
   }, [rows, sel, setStatus, openDetail]);
 
-  const th = (key: SortKey, label: string) => (
-    <th onClick={() => { if (sort === key) setAsc(!asc); else { setSort(key); setAsc(true); } }}>
-      {label}{sort === key ? (asc ? ' ▲' : ' ▼') : ''}
-    </th>
-  );
+  // A real <button> inside the <th>: tabbable, Enter/Space work for free, and
+  // aria-sort tells a screen reader which column is ordering the table.
+  const th = (key: SortKey, label: string) => {
+    const active = sort === key;
+    return (
+      <th aria-sort={active ? (asc ? 'ascending' : 'descending') : 'none'}>
+        <button
+          type="button"
+          className="sort"
+          onClick={() => { if (active) setAsc(!asc); else { setSort(key); setAsc(true); } }}
+          aria-label={`Sort by ${label.toLowerCase()}${active ? (asc ? ', currently ascending' : ', currently descending') : ''}`}
+        >
+          {label}<span aria-hidden="true">{active ? (asc ? ' ▲' : ' ▼') : ''}</span>
+        </button>
+      </th>
+    );
+  };
 
   return (
     <div className="view-enter">
       <div className="row" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
-        <div className="micro-b micro">MANIFEST · {rows.length} OBJECTS</div>
-        <input placeholder="SEARCH…" value={q} onChange={e => setQ(e.target.value)} style={{ width: 190 }} />
-        <select value={fClass} onChange={e => setFClass(e.target.value)} style={{ width: 130 }}>
+        <h2 className="micro-b micro" style={{ margin: 0 }}>MANIFEST · {rows.length} OBJECTS</h2>
+        <label className="sr-only" htmlFor="mf-search">Search objects</label>
+        <input
+          id="mf-search" type="search" name="manifest-search"
+          placeholder="Search…" value={q} onChange={e => setQ(e.target.value)}
+          autoComplete="off" spellCheck={false} style={{ width: 190 }}
+        />
+        <label className="sr-only" htmlFor="mf-class">Filter by class</label>
+        <select id="mf-class" name="class" value={fClass} onChange={e => setFClass(e.target.value)} style={{ width: 130 }}>
           <option value="">ALL CLASSES</option>
           {data.classes.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
           <option value="LIFE">LIFE</option>
         </select>
-        <select value={fType} onChange={e => setFType(e.target.value)} style={{ width: 120 }}>
+        <label className="sr-only" htmlFor="mf-type">Filter by type</label>
+        <select id="mf-type" name="type" value={fType} onChange={e => setFType(e.target.value)} style={{ width: 120 }}>
           <option value="">ALL TYPES</option>
           {ITEM_TYPES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
         </select>
-        <select value={fStatus} onChange={e => setFStatus(e.target.value as typeof fStatus)} style={{ width: 110 }}>
+        <label className="sr-only" htmlFor="mf-status">Filter by status</label>
+        <select id="mf-status" name="status" value={fStatus} onChange={e => setFStatus(e.target.value as typeof fStatus)} style={{ width: 110 }}>
           <option value="active">ACTIVE</option>
           <option value="ghost">PROPOSED</option>
           <option value="done">RESOLVED</option>
@@ -94,7 +114,7 @@ export default function TableView() {
         <table className="swiss">
           <thead>
             <tr>
-              <th style={{ width: 30 }}>✓</th>
+              <th style={{ width: 30 }}><span className="sr-only">Done</span><span aria-hidden="true">✓</span></th>
               {th('class', 'CLASS')}
               {th('type', 'TYPE')}
               {th('title', 'OBJECT')}
@@ -114,8 +134,13 @@ export default function TableView() {
                   onClick={() => { setSel(i); openDetail(it.id); }}>
                   <td onClick={e => e.stopPropagation()}>
                     {it.ghost
-                      ? <button className="btn sm ghosty" onClick={() => acceptGhost(it.id)} title="Accept proposal">＋</button>
-                      : <input type="checkbox" checked={it.status === 'done'} onChange={() => setStatus(it.id, it.status === 'done' ? 'pending' : 'done')} />}
+                      ? <button className="btn sm ghosty" type="button" onClick={() => acceptGhost(it.id)}
+                          aria-label={`Accept proposal: ${it.title}`} title="Accept proposal">
+                          <span aria-hidden="true">＋</span>
+                        </button>
+                      : <input type="checkbox" checked={it.status === 'done'}
+                          aria-label={`Mark ${it.title} done`}
+                          onChange={() => setStatus(it.id, it.status === 'done' ? 'pending' : 'done')} />}
                   </td>
                   <td><span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}><span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}</span></td>
                   <td className="mono dim" style={{ fontSize: 10 }}>{TYPE_GLYPH[it.type]}{it.at_home === false ? '·IC' : ''}</td>

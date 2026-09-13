@@ -35,7 +35,7 @@ export default function PlanView() {
   return (
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="micro">COLLISION FORECAST — {forecast.filter(f => f.hell).length} HELL WEEK{forecast.filter(f => f.hell).length === 1 ? '' : 'S'} DETECTED</div>
-      <h2 className="display" style={{ fontSize: 30, margin: '6px 0 16px' }}>The next <span className="iridescent-text">{forecast.length} weeks</span></h2>
+      <h2 className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '6px 0 16px' }}>The next <span className="iridescent-text">{forecast.length} weeks</span></h2>
 
       <div className="panel corner" style={{ padding: 18 }}>
         <i className="c3" />
@@ -90,8 +90,10 @@ export default function PlanView() {
                   ◇ {g.title}
                 </button>
                 <span className="mono faint" style={{ fontSize: 10 }}>{g.due_at ? fmtEt(new Date(g.due_at), 'EEE MMM d') : ''}</span>
-                <button className="btn sm" onClick={() => app.acceptGhost(g.id)}>A ✓</button>
-                <button className="btn sm danger" onClick={() => app.deleteItem(g.id)}>✕</button>
+                <button className="btn sm" type="button" aria-label={`Accept proposal: ${g.title}`}
+                  onClick={() => app.acceptGhost(g.id)}>A <span aria-hidden="true">✓</span></button>
+                <button className="btn sm danger" type="button" aria-label={`Dismiss proposal: ${g.title}`}
+                  onClick={() => app.deleteItem(g.id)}><span aria-hidden="true">✕</span></button>
               </div>
             );
           })}

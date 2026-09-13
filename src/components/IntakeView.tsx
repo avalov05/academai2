@@ -206,7 +206,7 @@ export default function IntakeView() {
         <>
           {failure && <FailurePanel f={failure} onDismiss={() => setFailure(null)} onSettings={() => app.setView('SETTINGS')} />}
           <div className="micro">UNIVERSAL INTAKE — FEED ME ANYTHING</div>
-          <h2 className="display" style={{ fontSize: 30, margin: '6px 0 14px' }}>
+          <h2 className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '6px 0 14px' }}>
             Syllabus PDF · Screenshot · Email · <span className="iridescent-text">Announcement</span>
           </h2>
           <div className="panel corner" style={{ padding: 16 }}
@@ -249,7 +249,8 @@ export default function IntakeView() {
                         <div style={{ fontSize: 10.5, marginTop: 2, color: f.failed ? '#8c2f28' : 'var(--dim)' }}>{f.note}</div>
                       )}
                     </div>
-                    <button className="btn sm danger" onClick={() => setFiles(x => x.filter((_, j) => j !== i))}>✕</button>
+                    <button className="btn sm danger" type="button" aria-label={`Remove ${f.name}`}
+                      onClick={() => setFiles(x => x.filter((_, j) => j !== i))}><span aria-hidden="true">✕</span></button>
                   </div>
                 ))}
                 {reading > 0 && <div className="faint" style={{ fontSize: 11.5 }}>Reading {reading} file{reading > 1 ? 's' : ''}…</div>}
@@ -342,7 +343,7 @@ function ReviewScreen({ review, setReview, commit, busy, modelUsed }: {
       <div className="row" style={{ flexWrap: 'wrap' }}>
         <div>
           <div className="micro">REVIEW BEFORE COMMIT — YOU ARE THE FINAL AUTHORITY</div>
-          <h2 className="display" style={{ fontSize: 26, margin: '4px 0' }}>
+          <h2 className="display" style={{ fontSize: 'clamp(22px, 2.6vw, 26px)', margin: '4px 0' }}>
             <span className="ok">{counts.NEW} NEW</span> · <span className="warn">{counts.UPDATE} UPDATES</span>
             {counts.MOVE > 0 && <> · <span style={{ color: '#8C4A12' }}>{counts.MOVE} MISFILED</span></>}
             {counts.FIX > 0 && <> · <span style={{ color: '#8C4A12' }}>{counts.FIX} TO FIX</span></>}

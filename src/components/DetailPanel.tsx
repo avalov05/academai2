@@ -22,22 +22,24 @@ export default function DetailPanel() {
 
   return (
     <>
-      <div className="overlay-dim" onClick={() => openDetail(null)} />
-      <aside className="slideover">
+      <button type="button" className="overlay-dim" aria-label="Close detail panel" onClick={() => openDetail(null)} />
+      <aside className="slideover" role="dialog" aria-modal="true" aria-labelledby="detail-title">
         <div className="row" style={{ marginBottom: 14 }}>
           <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '66' }}>
             <span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}
           </span>
           {it.ghost && <span className="chip ghost warn">PROPOSED — NOT COMMITTED</span>}
-          <button className="btn sm right-align" onClick={() => openDetail(null)}>ESC ✕</button>
+          <button className="btn sm right-align" type="button" onClick={() => openDetail(null)}>ESC <span aria-hidden="true">✕</span></button>
         </div>
 
-        <input type="text" value={it.title} onChange={e => updateItem(it.id, { title: e.target.value })}
-          style={{ fontSize: 16, fontFamily: 'var(--font-d)', fontWeight: 700, marginBottom: 14 }} />
+        <label className="sr-only" htmlFor="detail-title">Title</label>
+        <input id="detail-title" type="text" name="title" autoComplete="off"
+          value={it.title} onChange={e => updateItem(it.id, { title: e.target.value })}
+          style={{ fontSize: 'var(--t-lg)', fontFamily: 'var(--font-d)', fontWeight: 700, marginBottom: 14 }} />
 
         {it.ghost && (
           <button className="btn primary" style={{ width: '100%', marginBottom: 14 }} onClick={() => acceptGhost(it.id)}>
-            ACCEPT PROPOSAL — COMMIT TO RADAR
+            ACCEPT PROPOSAL, COMMIT TO RADAR
           </button>
         )}
 

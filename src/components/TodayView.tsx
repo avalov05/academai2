@@ -26,17 +26,17 @@ export default function TodayView() {
     <div className="view-enter" style={{ maxWidth: 980, margin: '0 auto' }}>
       <div className="boot-in" style={delay()}>
         <div className="micro">DAILY BRIEF · DAY {String(Math.max(1, dayN)).padStart(2, '0')} OF SEMESTER</div>
-        <h1 className="display" style={{ fontSize: 'clamp(34px, 6vw, 64px)', margin: '6px 0 4px' }}>
+        <h2 className="display" style={{ fontSize: 'var(--t-display)', margin: '6px 0 4px' }}>
           {fmtEt(now, 'EEEE')}<br />
           <span className="iridescent-text">{fmtEt(now, 'MMMM d')}</span>
-        </h1>
+        </h2>
         <div className="mono dim" style={{ fontSize: 12 }}>{fmtEt(now, 'HH:mm')} ET · SYSTEM CHECK: {b.overdue.length ? <span className="danger">{b.overdue.length} OVERDUE</span> : <span className="ok">NOMINAL</span>} · {b.dueToday.length} DUE · {b.meetings.length} MEETINGS</div>
       </div>
 
       {b.overdue.length > 0 && (
-        <section className="panel corner dark boot-in" style={{ marginTop: 22, padding: 18, ...delay() }}>
+        <section className="panel corner dark boot-in" aria-labelledby="t-overdue" style={{ marginTop: 22, padding: 18, ...delay() }}>
           <i className="c3" />
-          <div className="micro" style={{ color: '#FF8A9E' }}>OVERDUE — RESOLVE FIRST</div>
+          <h3 id="t-overdue" className="micro" style={{ color: '#FF8A9E', margin: 0 }}>OVERDUE. RESOLVE FIRST</h3>
           {b.overdue.map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
               onOpen={() => openDetail(it.id)} onDone={() => setStatus(it.id, 'done')} danger />
@@ -47,7 +47,7 @@ export default function TodayView() {
       <div className="grid2" style={{ marginTop: 22 }}>
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
-          <div className="micro" style={{ marginBottom: 10 }}>TODAY&apos;S MEETINGS</div>
+          <h3 className="micro" style={{ marginBottom: 10, marginTop: 0 }}>TODAY&apos;S MEETINGS</h3>
           {b.meetings.length === 0 && <div className="empty-note">No meetings. Async day — the radar still watches.</div>}
           {b.meetings.map(m => {
             const comp = compById.get(m.component_id);
@@ -72,7 +72,7 @@ export default function TodayView() {
 
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
-          <div className="micro" style={{ marginBottom: 10 }}>DUE TODAY</div>
+          <h3 className="micro" style={{ marginBottom: 10, marginTop: 0 }}>DUE TODAY</h3>
           {b.dueToday.length === 0 && <div className="empty-note">Nothing due today.</div>}
           {b.dueToday.map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
@@ -84,7 +84,7 @@ export default function TodayView() {
       <div className="grid2" style={{ marginTop: 14 }}>
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
-          <div className="micro" style={{ marginBottom: 10 }}>START TODAY — DEFUSE FUTURE PILE-UPS</div>
+          <h3 className="micro" style={{ marginBottom: 10, marginTop: 0 }}>START TODAY. DEFUSE FUTURE PILE-UPS</h3>
           {startToday.length === 0 && <div className="empty-note">No early starts scheduled.</div>}
           {startToday.slice(0, 6).map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
@@ -93,7 +93,7 @@ export default function TodayView() {
         </section>
         <section className="panel corner boot-in" style={{ padding: 16, ...delay() }}>
           <i className="c3" />
-          <div className="micro" style={{ marginBottom: 10 }}>INBOUND — NEXT 72H</div>
+          <h3 className="micro" style={{ marginBottom: 10, marginTop: 0 }}>INBOUND. NEXT 72H</h3>
           {b.upcoming.length === 0 && <div className="empty-note">Clear skies for 72 hours.</div>}
           {b.upcoming.slice(0, 8).map(it => (
             <RowItem key={it.id} it={it} cls={classById.get(it.class_id ?? '')} now={now}
@@ -118,7 +118,7 @@ function RowItem({ it, cls, now, onOpen, onDone, danger, startMode }: {
   return (
     <div className={`row ${hot && !danger ? `zone-row${over ? ' overdue-row' : urg === 'critical' ? ' critical-row' : ''}` : ''}`}
       style={{ padding: hot && !danger ? '7px 9px' : '7px 0', borderBottom: '1px solid var(--line)', borderRadius: hot && !danger ? 8 : 0 }}>
-      <input type="checkbox" checked={false} onChange={onDone} title="Mark done" />
+      <input type="checkbox" checked={false} onChange={onDone} aria-label={`Mark ${it.title} done`} title="Mark done" />
       <span className="chip" style={{ borderColor: (cls?.color ?? '#8A8A84') + '55' }}>
         <span className="dot" style={{ background: cls?.color ?? '#8A8A84' }} />{cls?.code ?? 'LIFE'}
       </span>

@@ -19,10 +19,13 @@ export default function ClassesView() {
   return (
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <SemesterPanel />
-      <div className="row" style={{ margin: '18px 0 10px' }}>
-        <span className="micro">REGISTERED CLASSES · {data.classes.length}</span>
-        <button className="btn sm right-align" onClick={() => setNewClassOpen(!newClassOpen)}>+ ADD CLASS MANUALLY</button>
-        <button className="btn sm primary" onClick={() => app.setView('INTAKE')}>PASTE SYLLABUS INSTEAD ⟶</button>
+      <div className="row" style={{ margin: '18px 0 10px', flexWrap: 'wrap' }}>
+        <h2 className="micro" style={{ margin: 0 }}>REGISTERED CLASSES · {data.classes.length}</h2>
+        <button className="btn sm right-align" type="button" aria-expanded={newClassOpen}
+          onClick={() => setNewClassOpen(!newClassOpen)}>+ ADD CLASS</button>
+        <button className="btn sm primary" type="button" onClick={() => app.setView('INTAKE')}>
+          PASTE SYLLABUS <span aria-hidden="true">⟶</span>
+        </button>
       </div>
       {newClassOpen && <NewClassForm onDone={() => setNewClassOpen(false)} />}
       {data.classes.map(k => (
@@ -115,7 +118,8 @@ function ClassCard({ k, editingComp, setEditingComp }: {
     <div className="panel corner" style={{ padding: 16, marginBottom: 12, borderLeft: `3px solid ${k.color}` }}>
       <i className="c3" />
       <div className="row">
-        <input type="color" value={k.color} onChange={e => app.updateClass(k.id, { color: e.target.value })} title="Class color" />
+        <input type="color" value={k.color} aria-label={`Colour for ${k.code}`}
+          onChange={e => app.updateClass(k.id, { color: e.target.value })} title="Class color" />
         <div>
           <div className="row">
             <strong style={{ fontSize: 16 }}>{k.code}</strong>
@@ -125,7 +129,8 @@ function ClassCard({ k, editingComp, setEditingComp }: {
         </div>
         <div className="right-align row">
           <button className="btn sm" onClick={() => setEditingComp(editingComp === k.id ? null : 'new:' + k.id)}>+ COMPONENT</button>
-          <button className="btn sm danger" onClick={() => { if (confirm(`Delete ${k.code} and all its items?`)) app.deleteClass(k.id); }}>✕</button>
+          <button className="btn sm danger" type="button" aria-label={`Delete class ${k.code}`}
+            onClick={() => { if (confirm(`Delete ${k.code} and all its items?`)) app.deleteClass(k.id); }}><span aria-hidden="true">✕</span></button>
         </div>
       </div>
 
@@ -141,7 +146,8 @@ function ClassCard({ k, editingComp, setEditingComp }: {
             {!c.is_async && nextOccs.get(c.id) && <span className="mono faint" style={{ fontSize: 10 }}>NEXT {fmtEt(etEndOfDay(nextOccs.get(c.id)!), 'EEE MMM d')}</span>}
             <span className="right-align row">
               <button className="btn sm" onClick={() => setEditingComp(editingComp === c.id ? null : c.id)}>{editingComp === c.id ? 'CLOSE' : 'EDIT'}</button>
-              <button className="btn sm danger" onClick={() => app.deleteComponent(c.id)}>✕</button>
+              <button className="btn sm danger" type="button" aria-label={`Delete ${c.kind} component`}
+                onClick={() => app.deleteComponent(c.id)}><span aria-hidden="true">✕</span></button>
             </span>
           </div>
           {editingComp === c.id && <ComponentEditor comp={c} onSave={p => { app.updateComponent(c.id, p); setEditingComp(null); }} />}
@@ -327,7 +333,8 @@ function GradingEditor({ k }: { k: Klass }) {
               <span className="micro">% · DROP</span>
               <input type="number" value={b.drops ?? 0} style={{ width: 60 }}
                 onChange={e => app.updateClass(k.id, { grading: k.grading.map((x, j) => j === i ? { ...x, drops: Number(e.target.value) || 0 } : x) })} />
-              <button className="btn sm danger" onClick={() => app.updateClass(k.id, { grading: k.grading.filter((_, j) => j !== i) })}>✕</button>
+              <button className="btn sm danger" type="button" aria-label={`Remove grading bucket ${b.name}`}
+                onClick={() => app.updateClass(k.id, { grading: k.grading.filter((_, j) => j !== i) })}><span aria-hidden="true">✕</span></button>
             </div>
           ))}
           <div className="row">
@@ -354,7 +361,8 @@ function HolidaysPanel() {
       <div className="row" style={{ flexWrap: 'wrap' }}>
         {data.holidays.sort((a, b) => a.date.localeCompare(b.date)).map(h => (
           <span key={h.id} className="chip">{h.date} {h.name}
-            <button onClick={() => app.deleteHoliday(h.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 10, padding: 0 }}>✕</button>
+            <button type="button" aria-label={`Remove holiday ${h.name}`} onClick={() => app.deleteHoliday(h.id)}
+              style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 10, padding: 0 }}><span aria-hidden="true">✕</span></button>
           </span>
         ))}
         <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: 150 }} />

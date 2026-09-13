@@ -48,6 +48,15 @@ export default function Background() {
     let grad: CanvasGradient | null = null;
     const ptr = { x: -9999, y: -9999, on: 0, active: false };
 
+    // The same pastel field that reads as a whisper on paper reads as neon on
+    // near-black. Halve it in dark mode rather than maintain a second palette.
+    let themeDim = 1;
+    const syncTheme = () => {
+      themeDim = getComputedStyle(document.documentElement).colorScheme.includes('dark') ? 0.3 : 1;
+    };
+    const schemeMq = window.matchMedia('(prefers-color-scheme: dark)');
+    const themeObserver = new MutationObserver(syncTheme);
+
     const build = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = window.innerWidth; H = window.innerHeight;
@@ -138,7 +147,7 @@ export default function Background() {
 
       ctx.fillStyle = grad;
       for (let i = 0; i < LEVELS; i++) {
-        ctx.globalAlpha = levelAlpha[i + 1];
+        ctx.globalAlpha = levelAlpha[i + 1] * themeDim;
         ctx.fill(paths[i]);
       }
       ctx.globalAlpha = 1;
@@ -156,18 +165,23 @@ export default function Background() {
       else raf = requestAnimationFrame(frame);
     };
 
+    syncTheme();
     build();
     raf = requestAnimationFrame(frame);
     window.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerleave', onLeave);
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVis);
+    schemeMq.addEventListener('change', syncTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerleave', onLeave);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVis);
+      schemeMq.removeEventListener('change', syncTheme);
+      themeObserver.disconnect();
     };
   }, []);
 

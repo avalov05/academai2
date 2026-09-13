@@ -76,11 +76,19 @@ export default function CommandPalette() {
   if (!paletteOpen) return null;
   return (
     <div className="modal-wrap" onClick={() => setPaletteOpen(false)}>
-      <div className="modal panel-solid corner" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal panel-solid corner"
+        role="dialog" aria-modal="true" aria-label="Command palette"
+        onClick={e => e.stopPropagation()}
+      >
         <i className="c3" />
+        <label className="sr-only" htmlFor="palette-input">Jump to a view, search items, or quick-add</label>
         <input
-          ref={inputRef} type="text" value={q}
-          placeholder="Type to jump / search · start with + to quick-add ( + call mom tue )"
+          id="palette-input" ref={inputRef} type="text" value={q}
+          name="command" autoComplete="off" spellCheck={false}
+          role="combobox" aria-expanded aria-controls="palette-results"
+          aria-activedescendant={!isCreate && results[sel] ? `palette-opt-${sel}` : undefined}
+          placeholder="Type to jump or search. Start with + to quick-add, e.g. + call mom tue"
           onChange={e => { setQ(e.target.value); setSel(0); }}
           onKeyDown={e => {
             if (e.key === 'ArrowDown') { setSel(s => Math.min(s + 1, results.length - 1)); e.preventDefault(); }
@@ -90,21 +98,35 @@ export default function CommandPalette() {
           }}
           style={{ fontSize: 14, padding: 14, border: 'none', borderBottom: '1px solid var(--line-strong)' }}
         />
-        <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+        <div
+          id="palette-results" role="listbox" aria-label="Results"
+          style={{ maxHeight: 340, overflowY: 'auto', overscrollBehavior: 'contain' }}
+        >
           {isCreate && (
             <div className="row" style={{ padding: '12px 14px' }}>
               <span className="chip ok">CREATE</span>
-              <span>{createTitle || '…'}</span>
+              <span className="truncate">{createTitle || '…'}</span>
               <span className="mono faint right-align" style={{ fontSize: 10 }}>⏎ TO ADD</span>
             </div>
           )}
           {!isCreate && results.map((r, i) => (
-            <div key={r.kind + r.id} className="row" onMouseEnter={() => setSel(i)} onClick={() => run(i)}
-              style={{ padding: '10px 14px', cursor: 'pointer', background: i === sel ? 'var(--accent-peri)' : 'transparent', borderLeft: i === sel ? '2px solid var(--charcoal)' : '2px solid transparent' }}>
-              <span className="mono" style={{ fontSize: 12 }}>{r.label}</span>
+            <button
+              key={r.kind + r.id}
+              id={`palette-opt-${i}`}
+              type="button"
+              role="option"
+              aria-selected={i === sel}
+              className="palette-row"
+              onMouseEnter={() => setSel(i)}
+              onClick={() => run(i)}
+            >
+              <span className="mono truncate" style={{ fontSize: 'var(--t-sm)' }}>{r.label}</span>
               {r.sub && <span className="chip right-align">{r.sub}</span>}
-            </div>
+            </button>
           ))}
+          {!isCreate && results.length === 0 && (
+            <div className="empty-note" style={{ padding: '14px' }}>No match. Start with + to add it as a new item.</div>
+          )}
         </div>
       </div>
     </div>

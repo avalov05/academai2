@@ -37,9 +37,9 @@ export default function FirstRun() {
   return (
     <div className="view-enter" style={{ maxWidth: 720, margin: '0 auto', paddingTop: 12 }}>
       <div className="micro">COLD START · NO DATA IN SYSTEM</div>
-      <h1 className="display" style={{ fontSize: 'clamp(30px,5vw,52px)', margin: '8px 0 4px' }}>
+      <h2 className="display" style={{ fontSize: 'clamp(30px, 5vw, 52px)', margin: '8px 0 4px' }}>
         Initialize <span className="iridescent-text">AcademAI</span>
-      </h1>
+      </h2>
       <div className="dim" style={{ fontSize: 13.5, marginBottom: 24 }}>
         Three steps. Then paste a syllabus and the radar fills itself.
       </div>

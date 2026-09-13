@@ -14,6 +14,7 @@ import DetailPanel from './DetailPanel';
 import CommandPalette from './CommandPalette';
 import PanicModal from './PanicModal';
 import FirstRun from './FirstRun';
+import ThemeToggle from './ThemeToggle';
 import { isOverdue, integrity, briefing } from '@/lib/planner';
 import { fmtEt } from '@/lib/time';
 
@@ -28,9 +29,19 @@ const NAV: Array<{ v: View; label: string; k: string }> = [
 ];
 
 function Clock() {
-  const [t, setT] = useState(new Date());
-  useEffect(() => { const i = setInterval(() => setT(new Date()), 1000); return () => clearInterval(i); }, []);
-  return <span className="mono dim num" style={{ fontSize: 11 }}>{fmtEt(t, 'HH:mm:ss')} ET</span>;
+  // Rendered only after mount: the server's clock and the browser's clock are
+  // never the same second, and a mismatch here throws a hydration error.
+  const [t, setT] = useState<Date | null>(null);
+  useEffect(() => {
+    setT(new Date());
+    const i = setInterval(() => setT(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
+  return (
+    <span className="mono dim num" style={{ fontSize: 'var(--t-xs)' }} suppressHydrationWarning>
+      {t ? `${fmtEt(t, 'HH:mm:ss')} ET` : ' '}
+    </span>
+  );
 }
 
 export default function Shell() {
@@ -72,16 +83,26 @@ export default function Shell() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand">
-          <span className="sig" />
-          ACADEM<span className="acc">AI</span>
-        </div>
-        <nav className="nav">
+        <h1 className="brand">
+          <span className="sig" aria-hidden="true" />
+          <span translate="no">ACADEM<span className="acc">AI</span></span>
+        </h1>
+        <nav className="nav" aria-label="Views">
           {NAV.map(n => (
-            <button key={n.v} className={view === n.v ? 'active' : ''} onClick={() => setView(n.v)}>
+            <button
+              key={n.v}
+              type="button"
+              className={view === n.v ? 'active' : ''}
+              aria-current={view === n.v ? 'page' : undefined}
+              onClick={() => setView(n.v)}
+            >
               {n.label}
-              {n.v === 'PLAN' && ghostCount > 0 && <span className="warn"> ◇{ghostCount}</span>}
-              <span className="k">{n.k}</span>
+              {n.v === 'PLAN' && ghostCount > 0 && (
+                <span className="warn"> <span aria-hidden="true">◇</span>{ghostCount}
+                  <span className="sr-only"> proposed</span>
+                </span>
+              )}
+              <span className="k" aria-hidden="true">{n.k}</span>
             </button>
           ))}
         </nav>
@@ -95,13 +116,23 @@ export default function Shell() {
           )}
           <span className="chip">{dueToday} DUE TODAY</span>
           <span className="chip ok" title="on-time / missed / day streak">{intg.missed === 0 ? `0 MISSED · ${intg.streakDays}D` : `${intg.missed} MISSED`}</span>
-          <button className="btn sm primary" onClick={() => app.setPanicOpen(true)} title="Panic — I have N minutes (P)">Panic</button>
-          <button className="btn sm" onClick={() => setView('SETTINGS')} title="Settings (S)" style={{ padding: '5px 10px' }}>⚙</button>
+          <button className="btn sm primary" type="button" onClick={() => app.setPanicOpen(true)} title="Panic: I have N minutes (P)">Panic</button>
+          <button
+            className="btn sm"
+            type="button"
+            onClick={() => setView('SETTINGS')}
+            aria-label="Settings"
+            title="Settings (S)"
+            style={{ padding: '5px 10px' }}
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
+          <ThemeToggle />
           <Clock />
         </div>
       </header>
 
-      <main className="main">
+      <main className="main" id="main" tabIndex={-1}>
         {view === 'RADAR' && (needsSetup ? <FirstRun /> : <Radar />)}
         {view === 'TODAY' && <TodayView />}
         {view === 'TABLE' && <TableView />}
@@ -113,10 +144,18 @@ export default function Shell() {
       </main>
 
       {view === 'RADAR' && !needsSetup && (
-        <footer style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '10px 18px', display: 'flex', gap: 18, pointerEvents: 'none', flexWrap: 'wrap' }}>
+        <footer
+          aria-label="Radar legend and shortcuts"
+          style={{
+            position: 'fixed', left: 0, right: 0,
+            bottom: 'env(safe-area-inset-bottom, 0px)',
+            padding: '10px 18px', display: 'flex', gap: 18,
+            pointerEvents: 'none', flexWrap: 'wrap',
+          }}
+        >
           <span className="mono dim" style={{ fontSize: 10 }}>◆ COMMITTED · ◇ PROPOSED (dashed) · CENTER = NOW · RIM = 3 WEEKS OUT</span>
           <span className="mono dim" style={{ fontSize: 10 }}>RINGED ◆ = TEST (EXAM / IN-CLASS QUIZ) · ■ PROJECT · ● WORK</span>
-          <span className="mono dim right-align" style={{ fontSize: 10 }}>⌘K PALETTE · P PANIC · V PASTE-IN · CLICK BLIP = DETAIL</span>
+          <span className="mono dim right-align" style={{ fontSize: 10 }}>⌘&nbsp;K PALETTE · P PANIC · V PASTE-IN · CLICK BLIP = DETAIL</span>
         </footer>
       )}
 
@@ -131,10 +170,12 @@ export default function Shell() {
 function Toasts() {
   const { toasts } = useApp();
   return (
-    <div style={{ position: 'fixed', bottom: 18, right: 18, zIndex: 100, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    // polite, not assertive: a confirmation should reach a screen reader at the
+    // next pause, not interrupt whatever the user is reading.
+    <div className="toast-region" role="status" aria-live="polite" aria-atomic="false">
       {toasts.map(t => (
         <div key={t.id} className="panel-solid boot-in" style={{
-          padding: '12px 16px', fontSize: 12.5, maxWidth: 360,
+          padding: '12px 16px', fontSize: 'var(--t-sm)', maxWidth: 360,
           boxShadow: 'var(--shadow-dark)',
           borderLeft: `4px solid var(--${t.tone === 'ok' ? 'ok' : t.tone === 'warn' ? 'warn' : 'danger'})`,
         }}>

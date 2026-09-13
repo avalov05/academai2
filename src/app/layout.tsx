@@ -19,16 +19,28 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#EFEFEA',
+  // The browser chrome should match the page it is sitting above, in both
+  // schemes — a light status bar over a near-black app reads as a rendering bug.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#EFEFEA' },
+    { media: '(prefers-color-scheme: dark)', color: '#131311' },
+  ],
   viewportFit: 'cover',
   width: 'device-width',
   initialScale: 1,
 };
 
+// Runs before first paint so a remembered theme never flashes the other one.
+const THEME_INIT = `try{var t=localStorage.getItem('academai-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body>
+        <a className="skip-link" href="#main">Skip to main content</a>
         <Background />
         {children}
       </body>
