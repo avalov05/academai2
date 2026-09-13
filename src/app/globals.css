@@ -79,9 +79,20 @@
   --focus: #1c1c1c;
   --overlay: rgba(23, 23, 23, .18);
 
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  --shadow-lift: 0 6px 18px rgba(0, 0, 0, 0.05);
-  --shadow-dark: 0 8px 24px rgba(0, 0, 0, 0.08);
+  /* elevation — stacked, tinted-soft (three offsets, never one heavy drop
+     shadow) so depth reads as physical rather than a CSS default. */
+  --shadow-xs: 0 1px 2px rgba(23, 23, 20, 0.04);
+  --shadow: 0 1px 2px rgba(23, 23, 20, 0.04), 0 6px 16px -4px rgba(23, 23, 20, 0.06), 0 16px 32px -16px rgba(23, 23, 20, 0.07);
+  --shadow-lift: 0 2px 4px rgba(23, 23, 20, 0.05), 0 10px 24px -6px rgba(23, 23, 20, 0.09), 0 24px 48px -18px rgba(23, 23, 20, 0.10);
+  --shadow-dark: 0 4px 8px rgba(15, 15, 12, 0.14), 0 16px 40px -8px rgba(15, 15, 12, 0.20), 0 32px 64px -20px rgba(15, 15, 12, 0.22);
+  /* the inner top edge every surface gets — the "machined" highlight that
+     stops a card reading as a flat colour rectangle */
+  --edge-hi: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --edge-hi-strong: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  /* motion — spring-ish curves, never linear/ease-in-out defaults */
+  --ease-smooth: cubic-bezier(.22, .7, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 
   /* radius — see RADIUS RULE above */
   --r-pill: 9999px;
@@ -94,7 +105,8 @@
   --r-lg: var(--r-card-lg);
   --r-sm: var(--r-field);
 
-  /* type scale — replaces the scattered 9/10/10.5/11/12.5/13.5px literals */
+  /* type scale — deliberately wide contrast: an eyebrow at 10.5px next to a
+     hero number at 92px is the hierarchy, not a note in a design doc */
   --t-micro: 10.5px;
   --t-xs: 11px;
   --t-sm: 12px;
@@ -102,12 +114,16 @@
   --t-md: 14px;
   --t-lg: 16px;
   --t-xl: 20px;
-  --t-display-sm: clamp(24px, 3vw, 30px);
-  --t-display: clamp(34px, 6vw, 64px);
+  --t-2xl: 28px;
+  --t-display-sm: clamp(24px, 3vw, 32px);
+  --t-display: clamp(38px, 7vw, 76px);
+  --t-display-xl: clamp(56px, 9vw, 104px);
 
-  /* space scale */
+  /* space scale — macro rhythm (s5+) opened up for real air between
+     sections and cards; s1-s4 stay tight on purpose, they carry chips, row
+     gaps and inline controls where the product's job is fast scanning */
   --s-1: 4px;  --s-2: 6px;  --s-3: 9px;  --s-4: 12px;
-  --s-5: 16px; --s-6: 22px; --s-7: 30px; --s-8: 44px;
+  --s-5: 18px; --s-6: 26px; --s-7: 36px; --s-8: 52px;
 
   /* brand gradient — the one decorative flourish, used once per surface */
   --brand-grad: linear-gradient(135deg, #ff9a8b 0%, #ff6a88 55%, #a8b2ff 100%);
@@ -178,11 +194,14 @@
     --row-hover: #232320;
     --row-sel: #23304a;
     --focus: #b9b9ff;
-    --overlay: rgba(0, 0, 0, .55);
+    --overlay: rgba(0, 0, 0, .6);
 
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.30);
-    --shadow-lift: 0 6px 18px rgba(0, 0, 0, 0.40);
-    --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.50);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 20px -4px rgba(0, 0, 0, 0.38), 0 20px 40px -16px rgba(0, 0, 0, 0.45);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px -6px rgba(0, 0, 0, 0.45), 0 28px 56px -18px rgba(0, 0, 0, 0.5);
+    --shadow-dark: 0 4px 10px rgba(0, 0, 0, 0.4), 0 20px 48px -10px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.6);
+    --edge-hi: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --edge-hi-strong: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
 }
 
@@ -242,11 +261,14 @@
   --row-hover: #232320;
   --row-sel: #23304a;
   --focus: #b9b9ff;
-  --overlay: rgba(0, 0, 0, .55);
+  --overlay: rgba(0, 0, 0, .6);
 
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.30);
-  --shadow-lift: 0 6px 18px rgba(0, 0, 0, 0.40);
-  --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.50);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 20px -4px rgba(0, 0, 0, 0.38), 0 20px 40px -16px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px -6px rgba(0, 0, 0, 0.45), 0 28px 56px -18px rgba(0, 0, 0, 0.5);
+  --shadow-dark: 0 4px 10px rgba(0, 0, 0, 0.4), 0 20px 48px -10px rgba(0, 0, 0, 0.55), 0 40px 80px -24px rgba(0, 0, 0, 0.6);
+  --edge-hi: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --edge-hi-strong: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 * { box-sizing: border-box; }
@@ -295,9 +317,12 @@ button, a, input, select, textarea, summary, [role='button'], [role='option'] {
 .bg-canvas { position: fixed; inset: 0; z-index: -2; }
 .bg-edges, .bg-blobs, .bg-noise { display: none; }
 
-/* ── typography ── */
+/* ── typography ──────────────────────────────────────────────────────────
+   The hierarchy is built from CONTRAST, not from a dozen sizes 1px apart:
+   a wide-tracked 10.5px eyebrow sits directly next to a tight-tracked
+   56-104px display number. Nothing in between competes with either. */
 .micro {
-  font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.06em;
+  font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.09em;
   text-transform: uppercase; color: var(--dim);
 }
 .micro-b { color: var(--text); font-weight: 600; }
@@ -310,32 +335,46 @@ button, a, input, select, textarea, summary, [role='button'], [role='option'] {
   font-size: .94em; letter-spacing: 0;
 }
 .display {
-  font-weight: 700; letter-spacing: -0.034em; line-height: 1.02;
+  font-weight: 700; letter-spacing: -0.036em; line-height: 1.02;
   color: var(--text); text-transform: none;
   text-wrap: balance;
+}
+/* Reserved for the one number per screen that IS the screen: the grade
+   percentage, the panic-minutes countdown. Heavier weight, tighter
+   tracking — the contrast is the point, so it earns exactly one use per view. */
+.display-xl {
+  font-weight: 800; letter-spacing: -0.045em; line-height: 0.96;
+  color: var(--text); text-transform: none; font-size: var(--t-display-xl);
 }
 h1, h2, h3, h4 { text-wrap: balance; }
 .num { font-family: var(--font-m); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
-/* ── surfaces ── */
+/* ── surfaces ──────────────────────────────────────────────────────────── */
 .panel {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow);
+  /* stacked ambient shadow + a 1px inner top highlight — the highlight is
+     what makes a card read as a machined surface instead of a flat swatch */
+  box-shadow: var(--shadow), var(--edge-hi);
   position: relative;
-  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease, background .2s ease;
+  transition: border-color .2s var(--ease-smooth), transform .3s var(--ease-spring),
+    box-shadow .3s var(--ease-smooth), background .2s var(--ease-smooth);
 }
 .panel-solid {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--edge-hi);
   position: relative;
 }
 .panel.dark, .panel-solid.dark {
-  background: var(--charcoal); color: var(--on-charcoal); border-color: var(--charcoal-2);
-  border-radius: var(--r-card-lg); box-shadow: var(--shadow-dark); backdrop-filter: none;
+  /* a gentle top-to-bottom gradient instead of a flat fill — the "loud"
+     surface should look machined, not like a color swatch */
+  background: linear-gradient(165deg, var(--charcoal-2) 0%, var(--charcoal) 70%);
+  color: var(--on-charcoal); border-color: var(--charcoal-2);
+  border-radius: var(--r-card-lg); box-shadow: var(--shadow-dark), var(--edge-hi-strong);
+  backdrop-filter: none;
 }
 .dark .micro { color: rgba(255,255,255,.68); }
 .dark .dim { color: rgba(255,255,255,.74); }
@@ -352,22 +391,36 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .corner > .c3::before, .corner > .c3::after { content: none; }
 .hairline { border: 0; border-top: 1px solid var(--line); margin: 0; }
 
-/* ── buttons ── */
+/* ── buttons ──────────────────────────────────────────────────────────────
+   A spring easing on hover (a hair of overshoot) instead of a linear
+   translate — it's what makes a press feel acknowledged rather than toggled. */
 .btn {
   font-family: var(--font-d); font-size: var(--t-sm); font-weight: 500;
   letter-spacing: 0; text-transform: none;
   background: var(--control-bg); color: var(--text);
   border: 1px solid var(--line); border-radius: var(--r-pill);
   padding: 8px 18px; cursor: pointer; position: relative;
-  transition: transform .18s ease, background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+  box-shadow: var(--edge-hi);
+  transition: transform .32s var(--ease-spring), background .18s var(--ease-smooth),
+    border-color .18s var(--ease-smooth), color .18s var(--ease-smooth), box-shadow .28s var(--ease-smooth);
 }
-.btn:hover { transform: translateY(-1px); background: var(--control-hover); border-color: var(--line-strong); box-shadow: var(--shadow); }
-.btn:active { transform: translateY(0) scale(.985); }
-.btn.primary { background: var(--primary-bg); color: var(--primary-fg); border-color: var(--primary-bg); font-weight: 500; }
-.btn.primary:hover { background: var(--primary-hover); color: var(--primary-fg); border-color: var(--primary-hover); }
+.btn:hover { transform: translateY(-1.5px) scale(1.015); background: var(--control-hover); border-color: var(--line-strong); box-shadow: var(--shadow), var(--edge-hi); }
+.btn:active { transform: translateY(0) scale(.97); transition-duration: .12s; }
+.btn.primary {
+  /* a whisper of a vertical gradient + inner highlight — a flat fill on a
+     pill this prominent reads cheap, the gradient reads machined */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-bg) 88%, white) 0%, var(--primary-bg) 100%);
+  color: var(--primary-fg); border-color: var(--primary-bg); font-weight: 600;
+  box-shadow: var(--edge-hi-strong);
+}
+.btn.primary:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-hover) 88%, white) 0%, var(--primary-hover) 100%);
+  color: var(--primary-fg); border-color: var(--primary-hover);
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--primary-bg) 45%, transparent), var(--edge-hi-strong);
+}
 .btn.danger { border-color: var(--status-danger-line); color: var(--status-danger-ink); background: var(--status-danger); }
 .btn.danger:hover { background: var(--status-danger); border-color: var(--status-danger-ink); color: var(--status-danger-ink); }
-.btn.ghosty { border-style: dashed; color: var(--dim); }
+.btn.ghosty { border-style: dashed; color: var(--dim); box-shadow: none; }
 .btn:disabled { opacity: .38; cursor: default; transform: none; }
 .btn.sm { padding: 5px 12px; font-size: var(--t-xs); }
 .btn { white-space: nowrap; }
@@ -407,13 +460,17 @@ kbd {
   border-radius: var(--r-micro); padding: 1px 5px; color: var(--dim); background: var(--card-subtle);
 }
 
-/* ── chips ── */
+/* ── chips ──────────────────────────────────────────────────────────────
+   Molded pills: a faint inner top highlight instead of a flat fill, echoing
+   the button treatment at a smaller scale. */
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: var(--t-xs); font-weight: 500; letter-spacing: 0; text-transform: none;
   border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--control-bg);
+  box-shadow: var(--edge-hi);
   padding: 4px 11px; color: var(--text); white-space: nowrap;
+  transition: box-shadow .2s var(--ease-smooth), transform .2s var(--ease-spring);
 }
 .chip .dot { width: 7px; height: 7px; border-radius: var(--r-micro); display: inline-block; }
 .chip.hot { border-color: var(--status-danger-line); color: var(--status-danger-ink); background: var(--status-danger); }
@@ -471,7 +528,7 @@ table.swiss th button.sort:hover { color: var(--text); background: var(--row-hov
 table.swiss th button.sort:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 table.swiss td { border-bottom: 1px solid var(--hair); padding: 10px var(--s-4); vertical-align: middle; }
 table.swiss tr.row { display: table-row; align-items: initial; gap: 0; }
-table.swiss tr.row { transition: background .14s; cursor: pointer; contain-intrinsic-size: auto 41px; content-visibility: auto; }
+table.swiss tr.row { transition: background .22s var(--ease-smooth); cursor: pointer; contain-intrinsic-size: auto 41px; content-visibility: auto; }
 table.swiss tr.row:hover { background: var(--row-hover); }
 table.swiss tr.row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 table.swiss tr.row.sel { background: var(--row-sel); box-shadow: inset 3px 0 0 var(--focus); }
@@ -494,16 +551,27 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 @keyframes floatCard { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 .float { animation: floatCard 11s ease-in-out infinite; }
 
-/* ── shell ── */
+/* ── shell ──────────────────────────────────────────────────────────────
+   The topbar is a floating glass plane, not a bar glued to the viewport
+   edge with a flat rule under it: heavier blur, a gradient hairline instead
+   of a solid one, and a soft shadow to separate it from the content
+   scrolling underneath — the same "surface ladder" depth cue product
+   references (Vercel, Raycast) use instead of a hard border. */
 .shell { display: flex; flex-direction: column; min-height: 100dvh; }
 .topbar {
   display: flex; align-items: center;
   padding: 0 var(--s-6) 0 0;
   padding-right: max(var(--s-6), env(safe-area-inset-right));
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: 0 1px 0 var(--line), 0 12px 24px -16px rgba(0, 0, 0, .18);
   position: sticky; top: 0; z-index: 30;
+}
+/* a whisper of the brand gradient in the seam, instead of a flat hairline */
+.topbar::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, #ff6a88 40%, transparent) 20%, color-mix(in srgb, #a8b2ff 40%, transparent) 55%, transparent 85%);
+  opacity: .5; pointer-events: none;
 }
 .brand {
   display: flex; align-items: center; gap: var(--s-3);
@@ -515,13 +583,14 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .brand .sig {
   width: 13px; height: 13px; border-radius: var(--r-micro);
   background: var(--brand-grad);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #ff6a88 16%, transparent), 0 2px 6px -1px rgba(255, 106, 136, .45);
 }
 .nav { display: flex; min-width: 0; }
 .nav button {
   font-size: var(--t-sm); font-weight: 500; letter-spacing: 0; text-transform: none;
   background: none; border: none; color: var(--dim);
   padding: 15px 15px; cursor: pointer; position: relative;
-  transition: color .16s, background .16s;
+  transition: color .2s var(--ease-smooth), background .2s var(--ease-smooth);
 }
 .nav button:hover { color: var(--text); background: var(--row-hover); }
 .nav button:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; border-radius: var(--r-micro); }
@@ -529,6 +598,7 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .nav button.active::after {
   content: ''; position: absolute; left: 15px; right: 15px; bottom: -1px; height: 2px;
   background: var(--brand-grad); border-radius: 2px;
+  box-shadow: 0 1px 8px -1px rgba(255, 106, 136, .5);
 }
 .nav button .k { margin-left: 5px; opacity: .28; font-size: 9px; }
 .topbar .spacer { flex: 1; min-width: 0; }
@@ -551,10 +621,10 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 
 .main {
   flex: 1; width: 100%; max-width: 1440px; margin: 0 auto;
-  padding: 26px 34px 34px;
-  padding-left: max(34px, env(safe-area-inset-left));
-  padding-right: max(34px, env(safe-area-inset-right));
-  padding-bottom: max(34px, env(safe-area-inset-bottom));
+  padding: var(--s-7) 40px 44px;
+  padding-left: max(40px, env(safe-area-inset-left));
+  padding-right: max(40px, env(safe-area-inset-right));
+  padding-bottom: max(44px, env(safe-area-inset-bottom));
 }
 
 /* ── theme toggle ── */
@@ -563,10 +633,12 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
   width: 28px; height: 28px; flex: none;
   background: var(--control-bg); color: var(--dim);
   border: 1px solid var(--line); border-radius: var(--r-pill);
+  box-shadow: var(--edge-hi);
   cursor: pointer; padding: 0; line-height: 1;
-  transition: color .18s, border-color .18s, background .18s;
+  transition: color .18s var(--ease-smooth), border-color .18s var(--ease-smooth),
+    background .18s var(--ease-smooth), transform .32s var(--ease-spring);
 }
-.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--control-hover); }
+.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--control-hover); transform: rotate(-12deg) scale(1.06); }
 .theme-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .theme-toggle svg { width: 14px; height: 14px; display: block; }
 
@@ -583,27 +655,32 @@ table.swiss tr.done td { opacity: .40; text-decoration: line-through; text-decor
 .slideover {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 94vw); z-index: 60;
   background: var(--paper); border-left: 1px solid var(--line);
-  box-shadow: -8px 0 30px rgba(0,0,0,.05);
+  box-shadow: -8px 0 30px rgba(0,0,0,.05), -1px 0 0 var(--edge-hi);
   padding: var(--s-6);
   padding-right: max(var(--s-6), env(safe-area-inset-right));
   padding-bottom: max(var(--s-6), env(safe-area-inset-bottom));
   overflow-y: auto; overscroll-behavior: contain;
-  animation: slideIn .26s cubic-bezier(.22,.7,.2,1) both;
+  animation: slideIn .38s var(--ease-spring) both;
 }
-@keyframes slideIn { from { transform: translateX(18px); opacity: 0; } to { transform: none; opacity: 1; } }
-.overlay-dim { position: fixed; inset: 0; z-index: 55; background: var(--overlay); border: 0; padding: 0; }
+@keyframes slideIn { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+.overlay-dim { position: fixed; inset: 0; z-index: 55; background: var(--overlay); border: 0; padding: 0; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 
-/* ── modals ── */
+/* ── modals ──────────────────────────────────────────────────────────────
+   The scrim itself gets a light blur (it's a fixed layer, not a scrolling
+   one, so this is free) and the modal enters with a spring settle rather
+   than a plain fade — the "did something respond to me" cue. */
 .modal-wrap {
   position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-start; justify-content: center;
   padding-top: 12vh; background: var(--overlay);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   overscroll-behavior: contain;
 }
 .modal {
-  width: min(640px, 94vw); animation: bootIn .22s both; overflow: hidden;
-  box-shadow: var(--shadow-dark); overscroll-behavior: contain;
+  width: min(640px, 94vw); animation: modalIn .4s var(--ease-spring) both; overflow: hidden;
+  box-shadow: var(--shadow-dark), var(--edge-hi-strong); overscroll-behavior: contain;
   max-height: 76dvh; display: flex; flex-direction: column;
 }
+@keyframes modalIn { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ── bars ── */
 .bar { height: 6px; background: var(--hair); border-radius: 2px; position: relative; overflow: hidden; border: 1px solid transparent; }
@@ -668,6 +745,9 @@ a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-r
 /* separators inside charcoal containers must be light, not the paper border */
 .dark .row { border-bottom-color: rgba(255, 255, 255, 0.13) !important; }
 .dark input[type='checkbox'] { accent-color: #fff; }
+/* the charcoal emphasis panel is dark regardless of page theme, so its row
+   hover needs its own light-on-dark tint instead of the theme's --row-hover */
+.dark .item-row:hover { background: rgba(255, 255, 255, .06); }
 
 /* section labels get a small pastel block — echoes the pixel motif */
 .panel > .micro:first-of-type::before,
@@ -679,8 +759,10 @@ a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-r
 }
 .dark .micro:first-of-type::before { background: linear-gradient(135deg, #ff9a8b, #ff6a88); }
 
-/* cards lift very slightly on hover — 1px, per the reference's restraint */
-.panel:hover { box-shadow: var(--shadow-lift); }
+/* cards lift on hover with a spring overshoot — enough to read as physical,
+   never enough to feel bouncy in a list of forty rows */
+.panel:hover { box-shadow: var(--shadow-lift), var(--edge-hi); transform: translateY(-2px); }
+.panel.dark:hover, .panel-solid.dark:hover { box-shadow: var(--shadow-dark), var(--edge-hi-strong); }
 
 /* ── row-level destructive actions stay quiet ───────────────────────────── */
 /* full-size danger buttons keep the pastel fill (real destructive intent);
@@ -710,6 +792,17 @@ input[type='color']::-moz-color-swatch { border: none; border-radius: 6px; }
   outline: 2px solid var(--focus); outline-offset: 2px;
 }
 
+/* ── interactive list rows (briefing rows, plan rows, log rows) ──────────
+   A tiny rightward nudge + background wash on hover — enough to confirm
+   "this row is a target" without the row visually detaching from its list. */
+.item-row {
+  transition: background .18s var(--ease-smooth), transform .28s var(--ease-spring), box-shadow .18s var(--ease-smooth);
+}
+.item-row:hover {
+  background: var(--row-hover);
+  transform: translateX(2px);
+}
+
 /* ── empty states are designed, not blank ───────────────────────────────── */
 .empty-note {
   display: flex; align-items: center; gap: 10px;
@@ -733,6 +826,7 @@ input[type='color']::-moz-color-swatch { border: none; border-radius: 6px; }
   font: inherit; color: var(--text);
   background: transparent; border: 0;
   border-left: 2px solid transparent; border-radius: 0;
+  transition: background .16s var(--ease-smooth), border-color .16s var(--ease-smooth);
 }
 .palette-row[aria-selected='true'] { background: var(--accent-peri); border-left-color: var(--focus); }
 .palette-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

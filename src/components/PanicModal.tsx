@@ -20,15 +20,19 @@ export default function PanicModal() {
       <div
         className="modal panel-solid corner dark"
         role="dialog" aria-modal="true" aria-labelledby="panic-title"
-        style={{ padding: 24, overflowY: 'auto' }}
+        style={{ padding: 28, overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
         <i className="c3" />
         <div className="micro" style={{ color: '#FF949C' }}>PANIC PROTOCOL</div>
-        <h2 id="panic-title" className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '6px 0 2px' }}>
-          I have <span className="iridescent-text num">{mins}</span> minutes
+        {/* the countdown is the one number in this dialog — full display-xl
+            treatment, the rest of the header stays quiet around it */}
+        <h2 id="panic-title" style={{ margin: '10px 0 4px', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <span className="display" style={{ fontSize: 'var(--t-lg)', fontWeight: 500, color: 'rgba(246,245,242,.7)' }}>I have</span>
+          <span className="iridescent-text num" style={{ fontWeight: 800, letterSpacing: '-0.045em', fontSize: 'clamp(44px, 6vw, 64px)', lineHeight: 1 }}>{mins}</span>
+          <span className="display" style={{ fontSize: 'var(--t-lg)', fontWeight: 500, color: 'rgba(246,245,242,.7)' }}>minutes</span>
         </h2>
-        <div className="mono dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 14 }}>OPTIMIZED BY URGENCY × GRADE IMPACT ÷ EFFORT. NO THINKING REQUIRED. EXECUTE.</div>
+        <div className="mono dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 16 }}>OPTIMIZED BY URGENCY × GRADE IMPACT ÷ EFFORT. NO THINKING REQUIRED. EXECUTE.</div>
         <div className="row" style={{ marginBottom: 6 }}>
           {PRESETS.map(p => (
             <button key={p} type="button" className={`btn sm ${p === mins ? 'primary' : ''}`}
@@ -45,8 +49,8 @@ export default function PanicModal() {
         {picks.map((p, i) => {
           const k = classById.get(p.item.class_id ?? '');
           return (
-            <div key={p.item.id} className="row" style={{ padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,.12)' }}>
-              <span className="display num" style={{ fontSize: 22, width: 34, color: i === 0 ? '#9BA9F7' : 'rgba(242,241,237,.45)' }}>{String(i + 1).padStart(2, '0')}</span>
+            <div key={p.item.id} className="row item-row" style={{ padding: '10px 8px', borderRadius: 10, borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+              <span className="display num" style={{ fontSize: 24, width: 36, color: i === 0 ? '#9BA9F7' : 'rgba(242,241,237,.45)' }}>{String(i + 1).padStart(2, '0')}</span>
               <div style={{ flex: 1 }}>
                 <div className="row">
                   <span className="chip" style={{ borderColor: (k?.color ?? '#8A8A84') + '55' }}><span className="dot" style={{ background: k?.color ?? '#8A8A84' }} />{k?.code ?? 'LIFE'}</span>

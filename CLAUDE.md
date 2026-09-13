@@ -1,17 +1,20 @@
-# Project Design & Development Guidelines
+# UI & Design System Guidelines
 
-## Installed Skills & Tools
-- Use the `/taste-skill` skill when refactoring or judging UI aesthetics.
-- Use the `/web-design-guidelines` skill to audit layout, accessibility, and UX rules.
-- Use `playwright-cli` to take screenshots of the website and visually verify changes.
+## Available Skills
+Invoke specific skills by name depending on the design direction:
+- High-End Aesthetic: `/design-taste-frontend` and `/high-end-visual-design`
+- Modern / Minimal: `/minimalist-ui` and `/stitch-design-taste`
+- Brutalist / Bold: `/industrial-brutalist-ui`
+- UX Rules: `/web-design-guidelines` and `/redesign-existing-projects`
 
-## Design References
-Before making UI edits, read the design pattern guidelines located in `.claude/design-references/` to match top-tier design aesthetics (typography, spacing, color choices, micro-interactions).
+## Design Reference Files
+Read all `.md` files inside `.claude/design-references/` for exact design systems, color tokens, typography scales, and visual inspiration.
 
-## Workflow for UI Redesigns
-1. Read the relevant design guidelines in `.claude/design-references/`.
-2. Apply design improvements to the codebase using `/web-design-guidelines` and `/taste-skill`.
-3. Test locally and take a screenshot using `npx playwright-cli screenshot` (or your local dev URL) to visually inspect the final result.
+## Browser Verification
+Use Playwright driven via Chrome (`channel: 'chrome'`) to capture visual snapshots of pages.
+
+## Goal
+Do NOT just fix code quality, console errors, or accessibility. Your primary job is visual transformation: typography hierarchy, whitespace, modern micro-interactions, elevated card design, and color harmony.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

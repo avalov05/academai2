@@ -11,7 +11,7 @@ export default function GradesView() {
   return (
     <div className="view-enter" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="micro">GRADE TELEMETRY · TARGET: STRAIGHT A&apos;S</div>
-      <h2 className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '6px 0 16px' }}>The <span className="iridescent-text">4.0</span> Ledger</h2>
+      <h2 className="display" style={{ fontSize: 'var(--t-display-sm)', margin: '10px 0 var(--s-6)' }}>The <span className="iridescent-text">4.0</span> Ledger</h2>
       {data.classes.length === 0 && <div className="empty-note">Add classes first — grading schemes ride in with each syllabus.</div>}
       {data.classes.map(k => <GradeCard key={k.id} k={k} />)}
     </div>
@@ -40,16 +40,34 @@ function GradeCard({ k }: { k: Klass }) {
     : st.neededOnRemaining > 92 ? 'var(--warn)' : 'var(--ok)';
 
   return (
-    <div className="panel corner" style={{ padding: 18, marginBottom: 14, borderLeft: `3px solid ${k.color}` }}>
+    <div
+      className="panel corner"
+      style={{
+        padding: 24, marginBottom: 18,
+        borderLeft: `4px solid ${k.color}`,
+        // a faint tint of the class colour bleeding into the card corner —
+        // ties the accent bar to the surface instead of leaving it isolated
+        backgroundImage: `radial-gradient(420px 180px at 0% 0%, color-mix(in srgb, ${k.color} 7%, transparent), transparent 70%)`,
+      }}
+    >
       <i className="c3" />
       <div className="row" style={{ flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 170 }}>
-          <div className="row"><strong style={{ fontSize: 16 }}>{k.code}</strong><span className="dim" style={{ fontSize: 12 }}>{k.name}</span></div>
-          <div className="display num" style={{ fontSize: 44, color: k.color, marginTop: 4 }}>
-            {st.currentPct != null ? st.currentPct.toFixed(1) : '—'}
-            <span style={{ fontSize: 18, color: 'var(--dim)' }}> {st.currentPct != null ? letterFor(st.currentPct) : ''}</span>
+        <div style={{ minWidth: 180, position: 'relative' }}>
+          <div className="row"><strong style={{ fontSize: 'var(--t-lg)' }}>{k.code}</strong><span className="dim" style={{ fontSize: 'var(--t-sm)' }}>{k.name}</span></div>
+          <div style={{ position: 'relative', marginTop: 2 }}>
+            {/* the one number this whole card exists to show — a soft glow in
+                the class colour instead of a flat number on white */}
+            <div aria-hidden="true" style={{
+              position: 'absolute', left: -24, right: -10, top: -8, height: 88,
+              background: `radial-gradient(60% 100% at 15% 55%, color-mix(in srgb, ${k.color} 32%, transparent), transparent 72%)`,
+              pointerEvents: 'none', zIndex: 0,
+            }} />
+            <div className="display-xl num" style={{ color: k.color, position: 'relative', fontSize: 'clamp(40px, 4.4vw, 56px)' }}>
+              {st.currentPct != null ? st.currentPct.toFixed(1) : '—'}
+              <span style={{ fontSize: 'var(--t-xl)', color: 'var(--dim)', fontWeight: 600, letterSpacing: 0 }}> {st.currentPct != null ? letterFor(st.currentPct) : ''}</span>
+            </div>
           </div>
-          <div className="micro">CURRENT · {st.gradedWeight}% OF GRADE BANKED</div>
+          <div className="micro" style={{ marginTop: 4 }}>CURRENT · {st.gradedWeight}% OF GRADE BANKED</div>
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           {k.grading.map(b => {
@@ -68,8 +86,8 @@ function GradeCard({ k }: { k: Klass }) {
           })}
         </div>
         <div style={{ minWidth: 210 }}>
-          <div className="micro" style={{ marginBottom: 4 }}>TO HOLD {k.target_pct}% ({letterFor(k.target_pct)})</div>
-          <div className="display num" style={{ fontSize: 30, color: needColor }}>
+          <div className="micro" style={{ marginBottom: 6 }}>TO HOLD {k.target_pct}% ({letterFor(k.target_pct)})</div>
+          <div className="display num" style={{ fontSize: 'var(--t-2xl)', color: needColor }}>
             {st.neededOnRemaining == null ? 'DONE' : st.neededOnRemaining <= 0 ? 'SECURED ✓' : st.neededOnRemaining > 100 ? `${st.neededOnRemaining.toFixed(1)}% ⚠` : `≥ ${st.neededOnRemaining.toFixed(1)}%`}
           </div>
           <div className="micro" style={{ margin: '2px 0 10px' }}>AVG NEEDED ON REMAINING {remainW}%</div>
@@ -109,7 +127,7 @@ function GradeCard({ k }: { k: Klass }) {
             </button>
           </div>
           {data.scores.filter(s => s.class_id === k.id).sort((a, b) => b.graded_at.localeCompare(a.graded_at)).map(s => (
-            <div key={s.id} className="row" style={{ padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+            <div key={s.id} className="row item-row" style={{ padding: '6px 8px', borderRadius: 8, borderBottom: '1px solid var(--line)' }}>
               <span className="mono dim" style={{ fontSize: 10.5, width: 140 }}>{s.bucket.toUpperCase()}</span>
               <span className="mono num" style={{ fontSize: 12 }}>{s.earned}/{s.possible} ({(100 * s.earned / s.possible).toFixed(1)}%)</span>
               <span className="dim" style={{ fontSize: 11 }}>{s.note}</span>
